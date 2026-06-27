@@ -38,8 +38,11 @@
     state: present
 
 - name: Check if uv is already installed
-  ansible.builtin.command:
-    cmd: which uv
+  ansible.builtin.shell:
+    cmd: "command -v uv"
+    executable: /bin/bash
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
   register: uv_which
   changed_when: false
   failed_when: false
