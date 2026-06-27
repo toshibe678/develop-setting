@@ -100,7 +100,7 @@
     dest: "{{ develop_setting_security_hooks_dir }}/pre-commit"
     content: |
       #!/bin/sh
-      exec pre-commit run --config "$HOME/.pre-commit-config.yaml"
+      exec pre-commit run --config "{{ develop_setting_security_precommit_config }}"
     mode: '0755'
 
 - name: Set global git core.hooksPath
