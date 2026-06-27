@@ -20,6 +20,13 @@ develop_setting_security_precommit_config: "{{ ansible_env.HOME }}/.pre-commit-c
 develop_setting_gitleaks_rev: "v8.18.0"
 develop_setting_semgrep_rev: "v1.68.0"
 
+# Supply chain attack countermeasures: package manager cooldown settings
+# pnpm / npm: minimum-release-age (.npmrc)
+develop_setting_npm_minimum_release_age: "7 days"
+# uv: exclude-newer (uv.toml) — RFC 3339 timestamp, e.g. "2024-01-01T00:00:00Z"
+# Leave empty ("") to disable. Update this value periodically (e.g. "now minus 7 days").
+develop_setting_uv_exclude_newer: ""
+
 # Claude Code user-level configuration (~/.claude)
 develop_setting_claude_config_dir: "{{ ansible_env.HOME }}/.claude"
 develop_setting_claude_md_content: ""
