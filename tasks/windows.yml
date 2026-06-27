@@ -26,9 +26,9 @@
     dest: "{{ ansible_env.USERPROFILE }}\\.git-hooks\\pre-commit"
     content: |
       #!/bin/sh
-      pre-commit run --config "$HOME/.pre-commit-config.yaml"
+      exec pre-commit run --config "$HOME/.pre-commit-config.yaml"
 
 - name: Set global git core.hooksPath (Windows)
-  ansible.windows.win_shell: git config --global core.hooksPath ~/.git-hooks
+  ansible.windows.win_shell: git config --global core.hooksPath "{{ ansible_env.USERPROFILE | replace('\\', '/') }}/.git-hooks"
   register: win_git_hooks
   changed_when: win_git_hooks.rc == 0
