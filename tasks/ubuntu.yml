@@ -37,6 +37,45 @@
     user: "{{ ansible_user_id }}"
     state: present
 
+- name: Check if uv is already installed
+  ansible.builtin.shell:
+    cmd: "command -v uv"
+    executable: /bin/bash
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  register: uv_which
+  changed_when: false
+  failed_when: false
+
+- name: Install uv via official install script
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_uv_install_url }} | sh"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  when: uv_which.rc != 0
+  changed_when: true
+
+- name: Check if pnpm is already installed
+  ansible.builtin.shell:
+    cmd: "command -v pnpm"
+    executable: /bin/bash
+  environment:
+    PATH: "{{ ansible_env.HOME }}/.local/share/pnpm:{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  register: pnpm_which
+  changed_when: false
+  failed_when: false
+
+- name: Install pnpm via official install script
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_pnpm_install_url }} | sh -"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+    SHELL: /bin/bash
+  when: pnpm_which.rc != 0
+  changed_when: true
+
 # ---- Security scanning: semgrep + gitleaks via pre-commit ----
 - name: Install pre-commit
   ansible.builtin.pip:
