@@ -19,3 +19,10 @@ develop_setting_security_hooks_dir: "{{ ansible_env.HOME }}/.git-hooks"
 develop_setting_security_precommit_config: "{{ ansible_env.HOME }}/.pre-commit-config.yaml"
 develop_setting_gitleaks_rev: "v8.18.0"
 develop_setting_semgrep_rev: "v1.68.0"
+
+# Claude Code user-level configuration (~/.claude)
+develop_setting_claude_config_dir: "{{ ansible_env.HOME }}/.claude"
+develop_setting_claude_md_content: ""
+develop_setting_claude_mcp_servers: {}
+develop_setting_claude_settings_env: {}
+develop_setting_claude_settings_permissions: {}

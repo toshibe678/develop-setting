@@ -20,6 +20,8 @@ tasks/main.yml
 tasks/windows.yml
 tasks/ubuntu.yml
 templates/pre-commit-config.yaml.j2
+templates/claude_CLAUDE.md.j2
+templates/claude_settings.json.j2
 ```
 
 ## 使い方
@@ -81,3 +83,53 @@ collections:
 Windows ターゲットには **Git for Windows** がインストール済みであることが必要です。  
 Git for Windows には Git Bash が付属しており、git hooks は Git Bash 経由で実行されます。  
 このため、フックスクリプトは `#!/bin/sh` の POSIX シェルスクリプトとして動作します。
+
+## Claude Code ユーザーレベル設定
+
+この Role は、ユーザーがどのディレクトリで Claude Code を起動しても設定が適用されるよう、  
+**ホームディレクトリの `.claude` 以下** にユーザーレベルの設定を配置します。
+
+| OS | 配置先 |
+|---|---|
+| Ubuntu | `~/.claude/` |
+| Windows | `%USERPROFILE%\.claude\` |
+
+### 配置されるファイル
+
+| ファイル | 説明 |
+|---|---|
+| `CLAUDE.md` | ユーザーレベルの Claude 向け指示・メモリファイル |
+| `settings.json` | Claude Code の設定（MCP サーバー設定を含む） |
+
+### カスタマイズ可能な変数
+
+| 変数名 | デフォルト値 | 説明 |
+|---|---|---|
+| `develop_setting_claude_config_dir` | `~/.claude` | Claude 設定ディレクトリ（Ubuntu のみ） |
+| `develop_setting_claude_md_content` | `""` | `CLAUDE.md` に追記するコンテンツ |
+| `develop_setting_claude_mcp_servers` | `{}` | MCP サーバー設定（`mcpServers` キー） |
+| `develop_setting_claude_settings_env` | `{}` | Claude Code に渡す環境変数 |
+| `develop_setting_claude_settings_permissions` | `{}` | Claude Code のパーミッション設定 |
+
+### 設定例
+
+```yaml
+- hosts: all
+  gather_facts: true
+  vars:
+    develop_setting_claude_md_content: |
+      ## プロジェクト共通ルール
+      - コミットメッセージは日本語で書くこと
+      - テストを必ず書くこと
+    develop_setting_claude_mcp_servers:
+      filesystem:
+        command: npx
+        args:
+          - -y
+          - "@modelcontextprotocol/server-filesystem"
+          - /home/user/projects
+    develop_setting_claude_settings_env:
+      ANTHROPIC_MODEL: claude-opus-4-5
+  roles:
+    - role: develop_setting
+```

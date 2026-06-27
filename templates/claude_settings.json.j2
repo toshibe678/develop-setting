@@ -1,0 +1,5 @@
+{
+  "mcpServers": {{ develop_setting_claude_mcp_servers | to_nice_json(indent=2) | indent(2) }},
+  "env": {{ develop_setting_claude_settings_env | to_nice_json(indent=2) | indent(2) }},
+  "permissions": {{ develop_setting_claude_settings_permissions | to_nice_json(indent=2) | indent(2) }}
+}

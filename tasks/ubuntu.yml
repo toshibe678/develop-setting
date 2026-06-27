@@ -120,3 +120,22 @@
     name: core.hooksPath
     value: "{{ develop_setting_security_hooks_dir }}"
     scope: global
+
+# ---- Claude Code user-level configuration (~/.claude) ----
+- name: Ensure Claude Code user config directory exists
+  ansible.builtin.file:
+    path: "{{ develop_setting_claude_config_dir }}"
+    state: directory
+    mode: '0700'
+
+- name: Deploy user-level CLAUDE.md
+  ansible.builtin.template:
+    src: claude_CLAUDE.md.j2
+    dest: "{{ develop_setting_claude_config_dir }}/CLAUDE.md"
+    mode: '0644'
+
+- name: Deploy user-level Claude settings.json (includes MCP settings)
+  ansible.builtin.template:
+    src: claude_settings.json.j2
+    dest: "{{ develop_setting_claude_config_dir }}/settings.json"
+    mode: '0600'
