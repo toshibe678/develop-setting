@@ -49,7 +49,7 @@
 
 - name: Install uv via official install script
   ansible.builtin.shell:
-    cmd: "curl -fsSL {{ develop_setting_uv_install_url }} | sh"
+    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_uv_install_url }} | sh"
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
