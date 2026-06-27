@@ -5,6 +5,8 @@ develop_setting_supported_ubuntu_versions:
   - "26.04"
 
 develop_setting_claude_install_url: "https://claude.ai/install.sh"
+develop_setting_uv_install_url: "https://astral.sh/uv/install.sh"
+develop_setting_pnpm_install_url: "https://get.pnpm.io/install.sh"
 develop_setting_claude_sandbox_packages:
   - bubblewrap
   - libcap2-bin

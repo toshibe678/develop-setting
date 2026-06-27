@@ -36,3 +36,36 @@
     job: "curl -fsSL {{ develop_setting_claude_install_url }} | bash >> {{ ansible_env.HOME }}/claude-update.log 2>&1"
     user: "{{ ansible_user_id }}"
     state: present
+
+- name: Check if uv is already installed
+  ansible.builtin.command:
+    cmd: which uv
+  register: uv_which
+  changed_when: false
+  failed_when: false
+
+- name: Install uv via official install script
+  ansible.builtin.shell:
+    cmd: "curl -LsSf {{ develop_setting_uv_install_url }} | sh"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  when: uv_which.rc != 0
+  changed_when: true
+
+- name: Check if pnpm is already installed
+  ansible.builtin.command:
+    cmd: which pnpm
+  register: pnpm_which
+  changed_when: false
+  failed_when: false
+
+- name: Install pnpm via official install script
+  ansible.builtin.shell:
+    cmd: "curl -fsSL {{ develop_setting_pnpm_install_url }} | sh -"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+    SHELL: /bin/bash
+  when: pnpm_which.rc != 0
+  changed_when: true
