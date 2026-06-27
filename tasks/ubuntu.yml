@@ -2,5 +2,5 @@
 - name: Validate Ubuntu version
   ansible.builtin.assert:
     that:
-      - ansible_distribution_version in develop_settiong_supported_ubuntu_versions
+      - ansible_distribution_version in develop_setting_supported_ubuntu_versions
     fail_msg: "This role supports Ubuntu 24.04 or 26.04 only."

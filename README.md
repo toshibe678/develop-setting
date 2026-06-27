@@ -27,7 +27,7 @@ tasks/ubuntu.yml
 
 ```yaml
 roles:
-  - name: develop_settiong
+  - name: develop_setting
     src: https://github.com/toshibe678/develop-settiong.git
 ```
 
@@ -37,5 +37,5 @@ Playbook 例:
 - hosts: all
   gather_facts: true
   roles:
-    - role: develop_settiong
+    - role: develop_setting
 ```

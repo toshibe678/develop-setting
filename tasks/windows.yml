@@ -2,5 +2,5 @@
 - name: Validate Windows 11 target
   ansible.builtin.assert:
     that:
-      - ansible_distribution is search(develop_settiong_supported_windows_pattern)
+      - ansible_distribution is search(develop_setting_supported_windows_pattern)
     fail_msg: "This role supports Windows 11 only."

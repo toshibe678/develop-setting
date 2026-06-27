@@ -1,6 +1,6 @@
 ---
 galaxy_info:
-  role_name: develop_settiong
+  role_name: develop_setting
   author: toshibe678
   description: Base role for shared Windows 11 and Ubuntu server settings
   min_ansible_version: "2.15"
