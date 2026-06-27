@@ -53,7 +53,8 @@ Playbook 例:
 
 | OS | 対象 | 設定ファイル | 設定キー |
 |---|---|---|---|
-| Ubuntu / Windows | pnpm / npm | `~/.npmrc` | `minimum-release-age` |
+| Ubuntu | pnpm / npm | `~/.npmrc` | `minimum-release-age` |
+| Windows | pnpm / npm | `%USERPROFILE%\.npmrc` | `minimum-release-age` |
 | Ubuntu | uv | `~/.config/uv/uv.toml` | `exclude-newer` |
 
 ### カスタマイズ可能な変数
