@@ -36,3 +36,36 @@
     job: "curl -fsSL {{ develop_setting_claude_install_url }} | bash >> {{ ansible_env.HOME }}/claude-update.log 2>&1"
     user: "{{ ansible_user_id }}"
     state: present
+
+# ---- Security scanning: semgrep + gitleaks via pre-commit ----
+- name: Install pre-commit
+  ansible.builtin.pip:
+    name: pre-commit
+    state: present
+    extra_args: "--user"
+
+- name: Ensure global git-hooks directory exists
+  ansible.builtin.file:
+    path: "{{ develop_setting_security_hooks_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy global pre-commit config (semgrep + gitleaks)
+  ansible.builtin.template:
+    src: pre-commit-config.yaml.j2
+    dest: "{{ develop_setting_security_precommit_config }}"
+    mode: '0644'
+
+- name: Deploy global pre-commit hook script
+  ansible.builtin.copy:
+    dest: "{{ develop_setting_security_hooks_dir }}/pre-commit"
+    content: |
+      #!/bin/sh
+      exec pre-commit run --config "$HOME/.pre-commit-config.yaml"
+    mode: '0755'
+
+- name: Set global git core.hooksPath
+  community.general.git_config:
+    name: core.hooksPath
+    value: "{{ develop_setting_security_hooks_dir }}"
+    scope: global

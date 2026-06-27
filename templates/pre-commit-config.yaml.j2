@@ -1,0 +1,10 @@
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: {{ develop_setting_gitleaks_rev }}
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/semgrep/semgrep
+    rev: {{ develop_setting_semgrep_rev }}
+    hooks:
+      - id: semgrep
+        args: ['--config', 'auto', '--error']
