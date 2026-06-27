@@ -3,3 +3,11 @@ develop_setting_supported_windows_pattern: 'Windows 11'
 develop_setting_supported_ubuntu_versions:
   - "24.04"
   - "26.04"
+
+develop_setting_claude_install_url: "https://claude.ai/install.sh"
+develop_setting_claude_sandbox_packages:
+  - bubblewrap
+  - libcap2-bin
+  - libseccomp2
+develop_setting_claude_update_cron_minute: "0"
+develop_setting_claude_update_cron_hour: "4"
