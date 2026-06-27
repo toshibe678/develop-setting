@@ -68,7 +68,7 @@
 
 - name: Install pnpm via official install script
   ansible.builtin.shell:
-    cmd: "curl -fsSL {{ develop_setting_pnpm_install_url }} | sh -"
+    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_pnpm_install_url }} | sh -"
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
