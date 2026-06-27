@@ -72,7 +72,7 @@ Playbook 例:
 
 ```yaml
 vars:
-  develop_setting_uv_exclude_newer: "2025-06-20T00:00:00Z"  # 7日前の日時を設定
+  develop_setting_uv_exclude_newer: "2024-01-01T00:00:00Z"  # 例: RFC 3339 形式の固定日時を設定
 ```
 
 ### GitHub Actions: Dependency Review
