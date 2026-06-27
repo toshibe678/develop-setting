@@ -35,3 +35,19 @@
   ansible.windows.win_shell: git config --global core.hooksPath "{{ ansible_env.USERPROFILE | replace('\\', '/') }}/.git-hooks"
   register: win_git_hooks
   changed_when: win_git_hooks.rc == 0
+
+# ---- Claude Code user-level configuration (%USERPROFILE%\.claude) ----
+- name: Ensure Claude Code user config directory exists (Windows)
+  ansible.windows.win_file:
+    path: "{{ ansible_env.USERPROFILE }}\\.claude"
+    state: directory
+
+- name: Deploy user-level CLAUDE.md (Windows)
+  ansible.windows.win_template:
+    src: claude_CLAUDE.md.j2
+    dest: "{{ ansible_env.USERPROFILE }}\\.claude\\CLAUDE.md"
+
+- name: Deploy user-level Claude settings.json (includes MCP settings) (Windows)
+  ansible.windows.win_template:
+    src: claude_settings.json.j2
+    dest: "{{ ansible_env.USERPROFILE }}\\.claude\\settings.json"
