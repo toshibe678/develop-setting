@@ -5,6 +5,14 @@
       - ansible_distribution is search(develop_setting_supported_windows_pattern)
     fail_msg: "This role supports Windows 11 only."
 
+# ---- Supply chain attack countermeasures: package manager cooldown ----
+- name: Configure .npmrc minimum-release-age for pnpm/npm (supply chain protection, Windows)
+  ansible.windows.win_lineinfile:
+    path: "{{ ansible_env.USERPROFILE }}\\.npmrc"
+    regexp: '^minimum-release-age='
+    line: "minimum-release-age={{ develop_setting_npm_minimum_release_age }}"
+    create: true
+
 # ---- Security scanning: semgrep + gitleaks via pre-commit ----
 - name: Install pre-commit via pip (Windows)
   ansible.windows.win_shell: pip install --user pre-commit

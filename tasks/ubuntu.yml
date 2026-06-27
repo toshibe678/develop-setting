@@ -84,6 +84,31 @@
   when: pnpm_which.rc != 0
   changed_when: true
 
+# ---- Supply chain attack countermeasures: package manager cooldown ----
+- name: Configure .npmrc minimum-release-age for pnpm/npm (supply chain protection)
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.npmrc"
+    regexp: '^minimum-release-age='
+    line: "minimum-release-age={{ develop_setting_npm_minimum_release_age }}"
+    create: true
+    mode: '0644'
+
+- name: Ensure uv config directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.config/uv"
+    state: directory
+    mode: '0755'
+  when: develop_setting_uv_exclude_newer != ""
+
+- name: Configure uv exclude-newer (supply chain protection)
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.config/uv/uv.toml"
+    regexp: '^exclude-newer\s*='
+    line: 'exclude-newer = "{{ develop_setting_uv_exclude_newer }}"'
+    create: true
+    mode: '0644'
+  when: develop_setting_uv_exclude_newer != ""
+
 # ---- Security scanning: semgrep + gitleaks via pre-commit ----
 - name: Install pre-commit
   ansible.builtin.pip:
