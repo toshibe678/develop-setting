@@ -53,6 +53,10 @@
     executable: /bin/bash
   environment:
     HOME: "{{ ansible_env.HOME }}"
+  register: uv_install
+  until: uv_install is succeeded
+  retries: 3
+  delay: 10
   when: uv_which.rc != 0
   changed_when: true
 
@@ -73,6 +77,10 @@
   environment:
     HOME: "{{ ansible_env.HOME }}"
     SHELL: /bin/bash
+  register: pnpm_install
+  until: pnpm_install is succeeded
+  retries: 3
+  delay: 10
   when: pnpm_which.rc != 0
   changed_when: true
 
@@ -82,6 +90,10 @@
     name: pre-commit
     state: present
     extra_args: "--user"
+  register: precommit_install
+  until: precommit_install is succeeded
+  retries: 3
+  delay: 10
 
 - name: Ensure global git-hooks directory exists
   ansible.builtin.file:
