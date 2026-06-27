@@ -75,11 +75,6 @@ vars:
   develop_setting_uv_exclude_newer: "2024-01-01T00:00:00Z"  # 例: RFC 3339 形式の固定日時を設定
 ```
 
-### GitHub Actions: Dependency Review
-
-`.github/workflows/dependency-review.yml` により、プルリクエスト時に  
-依存関係の脆弱性を自動チェックします（`moderate` 以上の重大度で失敗）。
-
 ### Dependabot 自動更新
 
 `.github/dependabot.yml` により、npm および GitHub Actions の依存関係を  
