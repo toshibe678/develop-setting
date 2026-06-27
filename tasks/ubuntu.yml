@@ -54,7 +54,7 @@
   environment:
     HOME: "{{ ansible_env.HOME }}"
   register: uv_install
-  until: uv_install.rc == 0
+  until: uv_install is succeeded
   retries: 3
   delay: 10
   when: uv_which.rc != 0
@@ -78,7 +78,7 @@
     HOME: "{{ ansible_env.HOME }}"
     SHELL: /bin/bash
   register: pnpm_install
-  until: pnpm_install.rc == 0
+  until: pnpm_install is succeeded
   retries: 3
   delay: 10
   when: pnpm_which.rc != 0
