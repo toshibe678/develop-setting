@@ -1,0 +1,5 @@
+---
+develop_setting_supported_windows_pattern: 'Windows 11'
+develop_setting_supported_ubuntu_versions:
+  - "24.04"
+  - "26.04"
