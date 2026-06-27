@@ -30,7 +30,5 @@ jobs:
         uses: docker://ghcr.io/gitleaks/gitleaks:v8.28.0
         with:
           args: >-
-            git /github/workspace
-            --report-format sarif
-            --report-path /github/workspace/gitleaks.sarif
+            detect --source /github/workspace
             --exit-code 1
