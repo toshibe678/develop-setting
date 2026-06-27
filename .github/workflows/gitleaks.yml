@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        uses: docker://ghcr.io/gitleaks/gitleaks:v8.28.0
+        uses: docker://ghcr.io/gitleaks/gitleaks@sha256:bf00b5e039f0fad4b32935dc5ec1e358f227ccd097bcb64b971f0331072fe2ae
         with:
           args: >-
             detect --source /github/workspace
