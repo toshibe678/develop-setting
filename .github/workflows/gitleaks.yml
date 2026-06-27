@@ -19,16 +19,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        # Gitleaks v8.28.0 (linux/amd64) pinned by digest for reproducibility.
+        uses: docker://ghcr.io/gitleaks/gitleaks@sha256:bf00b5e039f0fad4b32935dc5ec1e358f227ccd097bcb64b971f0331072fe2ae
+        with:
+          # /github/workspace is the standard GitHub Actions mount point for docker:// steps.
+          args: >-
+            detect --source /github/workspace
+            --exit-code 1
