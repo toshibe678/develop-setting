@@ -1,0 +1,17 @@
+---
+- name: Include Windows tasks
+  ansible.builtin.include_tasks: windows.yml
+  when: ansible_os_family == "Windows"
+
+- name: Include Ubuntu tasks
+  ansible.builtin.include_tasks: ubuntu.yml
+  when:
+    - ansible_system == "Linux"
+    - ansible_distribution == "Ubuntu"
+
+- name: Fail for unsupported platform
+  ansible.builtin.fail:
+    msg: "This role supports only Windows 11 and Ubuntu 24.04/26.04."
+  when:
+    - ansible_os_family != "Windows"
+    - not (ansible_system == "Linux" and ansible_distribution == "Ubuntu")
