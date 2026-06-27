@@ -4,3 +4,35 @@
     that:
       - ansible_distribution_version in develop_setting_supported_ubuntu_versions
     fail_msg: "This role supports Ubuntu 24.04 or 26.04 only."
+
+- name: Install Claude Code sandbox packages
+  ansible.builtin.apt:
+    name: "{{ develop_setting_claude_sandbox_packages }}"
+    state: present
+    update_cache: true
+  become: true
+
+- name: Check if Claude Code is already installed
+  ansible.builtin.command:
+    cmd: which claude
+  register: claude_which
+  changed_when: false
+  failed_when: false
+
+- name: Install Claude Code via official install script
+  ansible.builtin.shell:
+    cmd: "curl -fsSL {{ develop_setting_claude_install_url }} | bash"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  when: claude_which.rc != 0
+  changed_when: true
+
+- name: Set up daily Claude Code update cron job
+  ansible.builtin.cron:
+    name: "Update Claude Code"
+    minute: "{{ develop_setting_claude_update_cron_minute }}"
+    hour: "{{ develop_setting_claude_update_cron_hour }}"
+    job: "curl -fsSL {{ develop_setting_claude_install_url }} | bash >> {{ ansible_env.HOME }}/claude-update.log 2>&1"
+    user: "{{ ansible_user_id }}"
+    state: present
