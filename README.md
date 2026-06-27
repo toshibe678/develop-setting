@@ -61,7 +61,7 @@ Playbook 例:
 
 | 変数名 | デフォルト値 | 説明 |
 |---|---|---|
-| `develop_setting_npm_minimum_release_age` | `"7 days"` | pnpm / npm の最小リリース期間 |
+| `develop_setting_npm_minimum_release_age` | `"7"` | pnpm / npm の最小リリース期間（日数） |
 | `develop_setting_uv_exclude_newer` | `""` | uv の `exclude-newer` 日時（RFC 3339形式、空文字で無効） |
 
 ### uv の `exclude-newer` について
