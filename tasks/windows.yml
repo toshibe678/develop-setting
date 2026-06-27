@@ -9,6 +9,9 @@
 - name: Install pre-commit via pip (Windows)
   ansible.windows.win_shell: pip install --user pre-commit
   register: win_precommit_install
+  until: win_precommit_install.rc == 0
+  retries: 3
+  delay: 10
   changed_when: "'Successfully installed' in win_precommit_install.stdout"
 
 - name: Ensure global git-hooks directory exists (Windows)
