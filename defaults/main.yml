@@ -13,3 +13,9 @@ develop_setting_claude_sandbox_packages:
   - libseccomp2
 develop_setting_claude_update_cron_minute: "0"
 develop_setting_claude_update_cron_hour: "4"
+
+# Security scanning: semgrep + gitleaks via pre-commit
+develop_setting_security_hooks_dir: "{{ ansible_env.HOME }}/.git-hooks"
+develop_setting_security_precommit_config: "{{ ansible_env.HOME }}/.pre-commit-config.yaml"
+develop_setting_gitleaks_rev: "v8.18.0"
+develop_setting_semgrep_rev: "v1.68.0"

@@ -19,6 +19,7 @@ meta/main.yml
 tasks/main.yml
 tasks/windows.yml
 tasks/ubuntu.yml
+templates/pre-commit-config.yaml.j2
 ```
 
 ## 使い方
@@ -39,3 +40,44 @@ Playbook 例:
   roles:
     - role: develop_setting
 ```
+
+## セキュリティスキャン (semgrep + gitleaks)
+
+この Role は、**semgrep** と **gitleaks** を使った自動セキュリティスキャンを  
+**デフォルトユーザーのホームディレクトリ**にグローバル pre-commit フックとして設定します。
+
+### 動作概要
+
+1. `pre-commit` を pip 経由でインストール
+2. `~/.pre-commit-config.yaml` にグローバル設定ファイルを配置  
+   (semgrep と gitleaks の hooks を定義)
+3. `~/.git-hooks/pre-commit` にフックスクリプトを配置
+4. `git config --global core.hooksPath ~/.git-hooks` を設定
+
+これにより、ユーザーが操作する **すべての Git リポジトリ** でコミット時に  
+semgrep (静的解析) と gitleaks (シークレット検出) が自動実行されます。
+
+### カスタマイズ可能な変数
+
+| 変数名 | デフォルト値 | 説明 |
+|---|---|---|
+| `develop_setting_security_hooks_dir` | `~/.git-hooks` | グローバルフックディレクトリ |
+| `develop_setting_security_precommit_config` | `~/.pre-commit-config.yaml` | pre-commit 設定ファイルパス |
+| `develop_setting_gitleaks_rev` | `v8.18.0` | gitleaks の revision |
+| `develop_setting_semgrep_rev` | `v1.68.0` | semgrep の revision |
+
+### 必要なコレクション
+
+Ubuntu ターゲットで `community.general.git_config` モジュールを使用します。  
+`requirements.yml` にコレクションを追加してください:
+
+```yaml
+collections:
+  - name: community.general
+```
+
+### Windows の前提条件
+
+Windows ターゲットには **Git for Windows** がインストール済みであることが必要です。  
+Git for Windows には Git Bash が付属しており、git hooks は Git Bash 経由で実行されます。  
+このため、フックスクリプトは `#!/bin/sh` の POSIX シェルスクリプトとして動作します。
