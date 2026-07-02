@@ -1,14 +1,17 @@
 ---
+# 実行先がWindowsの場合、Windows専用タスクを読み込む
 - name: Include Windows tasks
   ansible.builtin.include_tasks: windows.yml
   when: ansible_os_family == "Windows"
 
+# 実行先がUbuntu Linuxの場合、Ubuntu専用タスクを読み込む
 - name: Include Ubuntu tasks
   ansible.builtin.include_tasks: ubuntu.yml
   when:
     - ansible_system == "Linux"
     - ansible_distribution == "Ubuntu"
 
+# サポート対象外OSのときは明示的に失敗させて実行を止める
 - name: Fail for unsupported platform
   ansible.builtin.fail:
     msg: "This role supports only Windows 11 and Ubuntu 24.04/26.04."

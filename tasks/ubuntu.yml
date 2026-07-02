@@ -1,10 +1,12 @@
 ---
+# 対象Ubuntuバージョンかを事前検証し、想定外環境での実行を防ぐ
 - name: Validate Ubuntu version
   ansible.builtin.assert:
     that:
       - ansible_distribution_version in develop_setting_supported_ubuntu_versions
     fail_msg: "This role supports Ubuntu 24.04 or 26.04 only."
 
+# Claude Code実行に必要なサンドボックス関連パッケージを導入する
 - name: Install Claude Code sandbox packages
   ansible.builtin.apt:
     name: "{{ develop_setting_claude_sandbox_packages }}"
@@ -12,6 +14,7 @@
     update_cache: true
   become: true
 
+# Claudeコマンドの存在を確認し、既存インストール有無を判定する
 - name: Check if Claude Code is already installed
   ansible.builtin.command:
     cmd: which claude
@@ -19,6 +22,7 @@
   changed_when: false
   failed_when: false
 
+# 未導入時のみ公式インストーラでClaude Codeをインストールする
 - name: Install Claude Code via official install script
   ansible.builtin.shell:
     cmd: "curl -fsSL {{ develop_setting_claude_install_url }} | bash"
@@ -28,6 +32,7 @@
   when: claude_which.rc != 0
   changed_when: true
 
+# Claude Codeを日次で更新するcronジョブをユーザー領域に設定する
 - name: Set up daily Claude Code update cron job
   ansible.builtin.cron:
     name: "Update Claude Code"
@@ -37,6 +42,7 @@
     user: "{{ ansible_user_id }}"
     state: present
 
+# uvコマンドの有無を確認し、インストール要否を判定する
 - name: Check if uv is already installed
   ansible.builtin.shell:
     cmd: "command -v uv"
@@ -47,6 +53,7 @@
   changed_when: false
   failed_when: false
 
+# 未導入時のみ公式インストーラでuvを導入する（リトライ付き）
 - name: Install uv via official install script
   ansible.builtin.shell:
     cmd: "set -o pipefail && curl -fsSL {{ develop_setting_uv_install_url }} | sh"
@@ -60,6 +67,7 @@
   when: uv_which.rc != 0
   changed_when: true
 
+# pnpmコマンドの有無を確認し、インストール要否を判定する
 - name: Check if pnpm is already installed
   ansible.builtin.shell:
     cmd: "command -v pnpm"
@@ -70,6 +78,7 @@
   changed_when: false
   failed_when: false
 
+# 未導入時のみ公式インストーラでpnpmを導入する（リトライ付き）
 - name: Install pnpm via official install script
   ansible.builtin.shell:
     cmd: "set -o pipefail && curl -fsSL {{ develop_setting_pnpm_install_url }} | sh -"
@@ -85,6 +94,7 @@
   changed_when: true
 
 # ---- Supply chain attack countermeasures: package manager cooldown ----
+# npm/pnpmの新規公開直後パッケージ利用を遅延させる設定を ~/.npmrc に適用する
 - name: Configure .npmrc minimum-release-age for pnpm/npm (supply chain protection)
   ansible.builtin.lineinfile:
     path: "{{ ansible_env.HOME }}/.npmrc"
@@ -93,6 +103,7 @@
     create: true
     mode: '0644'
 
+# uv設定ディレクトリを作成し、続く設定ファイル配置に備える
 - name: Ensure uv config directory exists
   ansible.builtin.file:
     path: "{{ ansible_env.HOME }}/.config/uv"
@@ -100,6 +111,7 @@
     mode: '0755'
   when: develop_setting_uv_exclude_newer != ""
 
+# uvのexclude-newerを設定し、最新過ぎるパッケージの利用を抑制する
 - name: Configure uv exclude-newer (supply chain protection)
   ansible.builtin.lineinfile:
     path: "{{ ansible_env.HOME }}/.config/uv/uv.toml"
@@ -110,6 +122,7 @@
   when: develop_setting_uv_exclude_newer != ""
 
 # ---- Security scanning: semgrep + gitleaks via pre-commit ----
+# pre-commit本体をユーザー領域に導入し、フック実行基盤を準備する
 - name: Install pre-commit
   ansible.builtin.pip:
     name: pre-commit
@@ -120,18 +133,21 @@
   retries: 3
   delay: 10
 
+# グローバルGitフック用ディレクトリを作成する
 - name: Ensure global git-hooks directory exists
   ansible.builtin.file:
     path: "{{ develop_setting_security_hooks_dir }}"
     state: directory
     mode: '0755'
 
+# semgrep/gitleaksを実行するpre-commit設定ファイルを配備する
 - name: Deploy global pre-commit config (semgrep + gitleaks)
   ansible.builtin.template:
     src: pre-commit-config.yaml.j2
     dest: "{{ develop_setting_security_precommit_config }}"
     mode: '0644'
 
+# グローバルpre-commitフックスクリプトを配置する
 - name: Deploy global pre-commit hook script
   ansible.builtin.copy:
     dest: "{{ develop_setting_security_hooks_dir }}/pre-commit"
@@ -140,6 +156,7 @@
       exec pre-commit run --config "{{ develop_setting_security_precommit_config }}"
     mode: '0755'
 
+# GitのhooksPathをグローバル設定し、全リポジトリで同一フックを有効化する
 - name: Set global git core.hooksPath
   community.general.git_config:
     name: core.hooksPath
@@ -147,18 +164,21 @@
     scope: global
 
 # ---- Claude Code user-level configuration (~/.claude) ----
+# ユーザー単位のClaude設定ディレクトリを作成する
 - name: Ensure Claude Code user config directory exists
   ansible.builtin.file:
     path: "{{ develop_setting_claude_config_dir }}"
     state: directory
     mode: '0700'
 
+# ユーザー共通のCLAUDE.mdをテンプレートから配置する
 - name: Deploy user-level CLAUDE.md
   ansible.builtin.template:
     src: claude_CLAUDE.md.j2
     dest: "{{ develop_setting_claude_config_dir }}/CLAUDE.md"
     mode: '0644'
 
+# MCP設定を含むsettings.jsonをテンプレートから配置する
 - name: Deploy user-level Claude settings.json (includes MCP settings)
   ansible.builtin.template:
     src: claude_settings.json.j2

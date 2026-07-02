@@ -1,4 +1,5 @@
 ---
+# 対象がWindows 11かを事前検証し、想定外環境での実行を防ぐ
 - name: Validate Windows 11 target
   ansible.builtin.assert:
     that:
@@ -6,6 +7,7 @@
     fail_msg: "This role supports Windows 11 only."
 
 # ---- Supply chain attack countermeasures: package manager cooldown ----
+# npm/pnpmの新規公開直後パッケージ利用を遅延させる設定を .npmrc に適用する
 - name: Configure .npmrc minimum-release-age for pnpm/npm (supply chain protection, Windows)
   ansible.windows.win_lineinfile:
     path: "{{ ansible_env.USERPROFILE }}\\.npmrc"
@@ -14,6 +16,7 @@
     create: true
 
 # ---- Security scanning: semgrep + gitleaks via pre-commit ----
+# pre-commitをユーザー領域に導入し、フック実行基盤を準備する
 - name: Install pre-commit via pip (Windows)
   ansible.windows.win_shell: pip install --user pre-commit
   register: win_precommit_install
@@ -22,16 +25,19 @@
   delay: 10
   changed_when: "'Successfully installed' in win_precommit_install.stdout"
 
+# グローバルGitフック用ディレクトリを作成する
 - name: Ensure global git-hooks directory exists (Windows)
   ansible.windows.win_file:
     path: "{{ ansible_env.USERPROFILE }}\\.git-hooks"
     state: directory
 
+# semgrep/gitleaksを実行するpre-commit設定ファイルを配備する
 - name: Deploy global pre-commit config (Windows)
   ansible.windows.win_template:
     src: pre-commit-config.yaml.j2
     dest: "{{ ansible_env.USERPROFILE }}\\.pre-commit-config.yaml"
 
+# グローバルpre-commitフックスクリプトを配置する
 - name: Deploy global pre-commit hook script (Windows)
   ansible.windows.win_copy:
     dest: "{{ ansible_env.USERPROFILE }}\\.git-hooks\\pre-commit"
@@ -39,22 +45,26 @@
       #!/bin/sh
       exec pre-commit run --config "$HOME/.pre-commit-config.yaml"
 
+# GitのhooksPathをグローバル設定し、全リポジトリで同一フックを有効化する
 - name: Set global git core.hooksPath (Windows)
   ansible.windows.win_shell: git config --global core.hooksPath "{{ ansible_env.USERPROFILE | replace('\\', '/') }}/.git-hooks"
   register: win_git_hooks
   changed_when: win_git_hooks.rc == 0
 
 # ---- Claude Code user-level configuration (%USERPROFILE%\.claude) ----
+# ユーザー単位のClaude設定ディレクトリを作成する
 - name: Ensure Claude Code user config directory exists (Windows)
   ansible.windows.win_file:
     path: "{{ ansible_env.USERPROFILE }}\\.claude"
     state: directory
 
+# ユーザー共通のCLAUDE.mdをテンプレートから配置する
 - name: Deploy user-level CLAUDE.md (Windows)
   ansible.windows.win_template:
     src: claude_CLAUDE.md.j2
     dest: "{{ ansible_env.USERPROFILE }}\\.claude\\CLAUDE.md"
 
+# MCP設定を含むsettings.jsonをテンプレートから配置する
 - name: Deploy user-level Claude settings.json (includes MCP settings) (Windows)
   ansible.windows.win_template:
     src: claude_settings.json.j2
