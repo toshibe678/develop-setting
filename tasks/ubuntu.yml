@@ -14,6 +14,13 @@
     update_cache: true
   become: true
 
+# claude-plugins取得に必要なgitを導入する
+- name: Install git package
+  ansible.builtin.apt:
+    name: git
+    state: present
+  become: true
+
 # Claudeコマンドの存在を確認し、既存インストール有無を判定する
 - name: Check if Claude Code is already installed
   ansible.builtin.command:
@@ -171,26 +178,31 @@
     state: directory
     mode: '0700'
 
-# Claude hooks 配備用のサブディレクトリを作成する
-- name: Ensure Claude Code support directories exist
-  ansible.builtin.file:
-    path: "{{ develop_setting_claude_config_dir }}/{{ item }}"
-    state: directory
-    mode: '0755'
-  loop:
-    - hooks
+# claude-pluginsリポジトリをclone/updateする
+- name: Clone or update claude-plugins repository
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      if [ -d "{{ develop_setting_claude_plugins_linux_dir }}/.git" ]; then
+        git -C "{{ develop_setting_claude_plugins_linux_dir }}" pull --ff-only
+      else
+        mkdir -p "$(dirname "{{ develop_setting_claude_plugins_linux_dir }}")"
+        git clone "{{ develop_setting_claude_plugins_repo_url }}" "{{ develop_setting_claude_plugins_linux_dir }}"
+      fi
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
+  register: claude_plugins_sync
+  changed_when: "'Already up to date.' not in claude_plugins_sync.stdout"
 
-# ホーム配下で使うClaude hooksを配備する
-- name: Deploy user-level Claude hooks
-  ansible.builtin.copy:
-    src: "claude/hooks/{{ item }}"
-    dest: "{{ develop_setting_claude_config_dir }}/hooks/{{ item }}"
-    mode: '0755'
-  loop:
-    - block-secrets.sh
-    - lint-on-save.sh
-    - notify-slack.sh
-    - validate-command.sh
+# claude-pluginsのsetup.shでグローバルインストールを実行する
+- name: Run claude-plugins global setup script
+  ansible.builtin.shell:
+    cmd: "./setup.sh {{ develop_setting_claude_plugins_setup_options }}"
+    chdir: "{{ develop_setting_claude_plugins_linux_dir }}"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ ansible_env.HOME }}"
 
 # ユーザー共通のCLAUDE.mdをテンプレートから配置する
 - name: Deploy user-level CLAUDE.md

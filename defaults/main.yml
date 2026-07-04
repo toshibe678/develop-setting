@@ -29,3 +29,8 @@ develop_setting_uv_exclude_newer: ""
 
 # Claude Code user-level configuration (~/.claude)
 develop_setting_claude_config_dir: "{{ ansible_env.HOME }}/.claude"
+
+# claude-plugins global setup configuration
+develop_setting_claude_plugins_repo_url: "https://github.com/toshibe678/claude-plugins.git"
+develop_setting_claude_plugins_linux_dir: "{{ ansible_env.HOME }}/git/claude-plugins"
+develop_setting_claude_plugins_setup_options: "--all --rules --hooks --commands --skills --global"

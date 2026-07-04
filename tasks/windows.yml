@@ -58,24 +58,31 @@
     path: "{{ ansible_env.USERPROFILE }}\\.claude"
     state: directory
 
-# Claude hooks 配備用のサブディレクトリを作成する
-- name: Ensure Claude Code support directories exist (Windows)
-  ansible.windows.win_file:
-    path: "{{ ansible_env.USERPROFILE }}\\.claude\\{{ item }}"
-    state: directory
-  loop:
-    - hooks
+# Git Bashの利用可否を確認する
+- name: Check Git Bash availability (Windows)
+  ansible.windows.win_shell: bash --version
+  register: win_bash_check
+  changed_when: false
+  failed_when: false
 
-# ホーム配下で使うClaude hooksを配備する
-- name: Deploy user-level Claude hooks (Windows)
-  ansible.windows.win_copy:
-    src: "claude/hooks/{{ item }}"
-    dest: "{{ ansible_env.USERPROFILE }}\\.claude\\hooks\\{{ item }}"
-  loop:
-    - block-secrets.sh
-    - lint-on-save.sh
-    - notify-slack.sh
-    - validate-command.sh
+# Git Bashがない場合は処理を停止する
+- name: Fail when Git Bash is not available (Windows)
+  ansible.builtin.fail:
+    msg: "Git Bash is required to run claude-plugins setup.sh on Windows. Please install Git for Windows and ensure 'bash' is available in PATH."
+  when: win_bash_check.rc != 0
+
+# claude-pluginsリポジトリをclone/updateし、setup.shをグローバル実行する
+- name: Clone/update claude-plugins and run global setup (Windows)
+  ansible.windows.win_shell: >-
+    bash -lc "set -euo pipefail;
+    mkdir -p \"$HOME/git\";
+    if [ -d \"$HOME/git/claude-plugins/.git\" ]; then
+      git -C \"$HOME/git/claude-plugins\" pull --ff-only;
+    else
+      git clone \"{{ develop_setting_claude_plugins_repo_url }}\" \"$HOME/git/claude-plugins\";
+    fi;
+    cd \"$HOME/git/claude-plugins\";
+    ./setup.sh {{ develop_setting_claude_plugins_setup_options }}"
 
 # ユーザー共通のCLAUDE.mdをテンプレートから配置する
 - name: Deploy user-level CLAUDE.md (Windows)
