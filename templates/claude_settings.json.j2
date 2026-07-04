@@ -1,5 +1,124 @@
 {
-  "mcpServers": {{ develop_setting_claude_mcp_servers | to_nice_json(indent=2) | indent(2) }},
-  "env": {{ develop_setting_claude_settings_env | to_nice_json(indent=2) | indent(2) }},
-  "permissions": {{ develop_setting_claude_settings_permissions | to_nice_json(indent=2) | indent(2) }}
+  "cleanupPeriodDays": 9999,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "MAX_MCP_OUTPUT_TOKENS": "50000",
+    "ENABLE_TOOL_SEARCH": "auto:5 claude"
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": true,
+    "filesystem": {
+      "denyRead": [
+        "~/.aws/credentials",
+        "~/.ssh"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "*.githubusercontent.com",
+        "*.npmjs.org",
+        "registry.yarnpkg.com",
+        "pypi.org"
+      ]
+    }
+  },
+  "permissions": {
+    "defaultMode": "default",
+    "disableBypassPermissionsMode": "disable",
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(wget *)",
+      "Bash(curl *)",
+      "Bash(pnpm run *)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm typecheck)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git reset --hard *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(npx prisma *)",
+      "Bash(* --version)",
+      "Bash(* --help)",
+      "Edit(/packages/**)",
+      "Write(/packages/**)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(nohup python *)",
+      "Read(//tmp/**)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "WebSearch",
+      "WebFetch(domain:strandsagents.com)",
+      "WebFetch(domain:dev.classmethod.jp)",
+      "WebFetch(domain:awslabs.github.io)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./config/credentials.json)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Bash(rm -rf *)",
+      "Edit(/.github/workflows/**)",
+      "Bash(chmod 777 *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/validate-command.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/block-secrets.sh\"",
+            "statusMessage": "セキュリティチェック中..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/lint-on-save.sh\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/notify-slack.sh\"",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
 }

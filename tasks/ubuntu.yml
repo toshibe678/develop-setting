@@ -171,6 +171,27 @@
     state: directory
     mode: '0700'
 
+# Claude hooks 配備用のサブディレクトリを作成する
+- name: Ensure Claude Code support directories exist
+  ansible.builtin.file:
+    path: "{{ develop_setting_claude_config_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - hooks
+
+# ホーム配下で使うClaude hooksを配備する
+- name: Deploy user-level Claude hooks
+  ansible.builtin.copy:
+    src: "claude/hooks/{{ item }}"
+    dest: "{{ develop_setting_claude_config_dir }}/hooks/{{ item }}"
+    mode: '0755'
+  loop:
+    - block-secrets.sh
+    - lint-on-save.sh
+    - notify-slack.sh
+    - validate-command.sh
+
 # ユーザー共通のCLAUDE.mdをテンプレートから配置する
 - name: Deploy user-level CLAUDE.md
   ansible.builtin.template:

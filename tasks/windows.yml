@@ -58,6 +58,25 @@
     path: "{{ ansible_env.USERPROFILE }}\\.claude"
     state: directory
 
+# Claude hooks 配備用のサブディレクトリを作成する
+- name: Ensure Claude Code support directories exist (Windows)
+  ansible.windows.win_file:
+    path: "{{ ansible_env.USERPROFILE }}\\.claude\\{{ item }}"
+    state: directory
+  loop:
+    - hooks
+
+# ホーム配下で使うClaude hooksを配備する
+- name: Deploy user-level Claude hooks (Windows)
+  ansible.windows.win_copy:
+    src: "claude/hooks/{{ item }}"
+    dest: "{{ ansible_env.USERPROFILE }}\\.claude\\hooks\\{{ item }}"
+  loop:
+    - block-secrets.sh
+    - lint-on-save.sh
+    - notify-slack.sh
+    - validate-command.sh
+
 # ユーザー共通のCLAUDE.mdをテンプレートから配置する
 - name: Deploy user-level CLAUDE.md (Windows)
   ansible.windows.win_template:

@@ -29,7 +29,3 @@ develop_setting_uv_exclude_newer: ""
 
 # Claude Code user-level configuration (~/.claude)
 develop_setting_claude_config_dir: "{{ ansible_env.HOME }}/.claude"
-develop_setting_claude_md_content: ""
-develop_setting_claude_mcp_servers: {}
-develop_setting_claude_settings_env: {}
-develop_setting_claude_settings_permissions: {}
