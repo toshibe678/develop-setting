@@ -1,0 +1,66 @@
+---
+# WSL経由Windows設定を使う場合、対象Windowsユーザー名の指定を必須にする
+- name: Validate Windows username for WSL mode
+  ansible.builtin.assert:
+    that:
+      - develop_setting_windows_user_name | length > 0
+    fail_msg: "Set develop_setting_windows_user_name when develop_setting_windows_from_wsl_enabled=true."
+
+# WSLから参照するWindowsホームディレクトリの存在を確認する
+- name: Check target Windows home directory exists
+  ansible.builtin.stat:
+    path: "{{ develop_setting_windows_home_dir }}"
+  register: windows_home_dir_stat
+
+# 対象Windowsホームが見つからない場合は明示的に失敗させる
+- name: Fail when target Windows home directory does not exist
+  ansible.builtin.assert:
+    that:
+      - windows_home_dir_stat.stat.exists
+      - windows_home_dir_stat.stat.isdir
+    fail_msg: "Target Windows home directory not found: {{ develop_setting_windows_home_dir }}"
+
+# Windowsホーム配下のClaude設定ディレクトリを作成する
+- name: Ensure Windows Claude config directory exists from WSL
+  ansible.builtin.file:
+    path: "{{ develop_setting_windows_claude_config_dir }}"
+    state: directory
+    mode: '0755'
+
+# WSL上でclaude-pluginsリポジトリをWindowsホーム配下へclone/updateする
+- name: Clone or update claude-plugins repository under Windows home from WSL
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      if [ -d "{{ develop_setting_claude_plugins_windows_wsl_dir }}/.git" ]; then
+        git -C "{{ develop_setting_claude_plugins_windows_wsl_dir }}" pull --ff-only
+      else
+        mkdir -p "$(dirname "{{ develop_setting_claude_plugins_windows_wsl_dir }}")"
+        git clone "{{ develop_setting_claude_plugins_repo_url }}" "{{ develop_setting_claude_plugins_windows_wsl_dir }}"
+      fi
+    executable: /bin/bash
+  register: claude_plugins_windows_wsl_sync
+  changed_when: "'Already up to date.' not in claude_plugins_windows_wsl_sync.stdout"
+
+# WSL上でHOMEをWindowsホームに向けてsetup.shを実行し、~/.claudeへグローバル配置する
+- name: Run claude-plugins global setup script for Windows home from WSL
+  ansible.builtin.shell:
+    cmd: "./setup.sh {{ develop_setting_claude_plugins_setup_options }}"
+    chdir: "{{ develop_setting_claude_plugins_windows_wsl_dir }}"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_windows_home_dir }}"
+
+# Windowsホーム配下へユーザーレベルのCLAUDE.mdを配置する
+- name: Deploy user-level CLAUDE.md to Windows home from WSL
+  ansible.builtin.template:
+    src: claude_CLAUDE.md.j2
+    dest: "{{ develop_setting_windows_claude_config_dir }}/CLAUDE.md"
+    mode: '0644'
+
+# Windowsホーム配下へユーザーレベルのsettings.jsonを配置する
+- name: Deploy user-level Claude settings.json to Windows home from WSL
+  ansible.builtin.template:
+    src: claude_settings.json.j2
+    dest: "{{ develop_setting_windows_claude_config_dir }}/settings.json"
+    mode: '0644'

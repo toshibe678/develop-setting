@@ -11,6 +11,13 @@
     - ansible_system == "Linux"
     - ansible_distribution == "Ubuntu"
 
+# WSL上からWindowsホーム配下へ設定する場合、WSL経由Windowsタスクを読み込む
+- name: Include Windows-from-WSL tasks
+  ansible.builtin.include_tasks: windows_from_wsl.yml
+  when:
+    - ansible_system == "Linux"
+    - develop_setting_windows_from_wsl_enabled | bool
+
 # サポート対象外OSのときは明示的に失敗させて実行を止める
 - name: Fail for unsupported platform
   ansible.builtin.fail:

@@ -34,3 +34,11 @@ develop_setting_claude_config_dir: "{{ ansible_env.HOME }}/.claude"
 develop_setting_claude_plugins_repo_url: "https://github.com/toshibe678/claude-plugins.git"
 develop_setting_claude_plugins_linux_dir: "{{ ansible_env.HOME }}/git/claude-plugins"
 develop_setting_claude_plugins_setup_options: "--all --rules --hooks --commands --skills --global"
+
+# WSLからWindowsホーム配下へ設定を適用するモード
+develop_setting_windows_from_wsl_enabled: false
+develop_setting_windows_from_wsl_mount_dir: "/mnt/"
+develop_setting_windows_user_name: ""
+develop_setting_windows_home_dir: "{{ develop_setting_windows_from_wsl_mount_dir }}c/Users/{{ develop_setting_windows_user_name }}"
+develop_setting_windows_claude_config_dir: "{{ develop_setting_windows_home_dir }}/.claude"
+develop_setting_claude_plugins_windows_wsl_dir: "{{ develop_setting_windows_home_dir }}/git/claude-plugins"
