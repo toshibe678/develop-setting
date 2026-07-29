@@ -27,15 +27,34 @@ templates/claude_settings.json.j2
 
 ## 使い方
 
-`requirements.yml` 例:
+### 1. `requirements.yml` に Role と Collection を追加
 
 ```yaml
 roles:
   - name: develop_setting
     src: https://github.com/toshibe678/develop-settiong.git
+
+collections:
+  - name: community.general
 ```
 
-Playbook 例:
+バージョンを固定したい場合は `version` を指定します:
+
+```yaml
+roles:
+  - name: develop_setting
+    src: https://github.com/toshibe678/develop-settiong.git
+    version: main  # タグ / ブランチ / コミットハッシュを指定可能
+```
+
+### 2. `ansible-galaxy` で Role と Collection をインストール
+
+```bash
+ansible-galaxy install -r requirements.yml
+ansible-galaxy collection install -r requirements.yml
+```
+
+### 3. Playbook から呼び出す
 
 ```yaml
 - hosts: all
@@ -88,7 +107,7 @@ vars:
 
 ### 動作概要
 
-1. `pre-commit` を pip 経由でインストール
+1. `pre-commit` を apt パッケージでインストール
 2. `~/.pre-commit-config.yaml` にグローバル設定ファイルを配置  
    (semgrep と gitleaks の hooks を定義)
 3. `~/.git-hooks/pre-commit` にフックスクリプトを配置
@@ -109,11 +128,15 @@ semgrep (静的解析) と gitleaks (シークレット検出) が自動実行�
 ### 必要なコレクション
 
 Ubuntu ターゲットで `community.general.git_config` モジュールを使用します。  
-`requirements.yml` にコレクションを追加してください:
+`requirements.yml` に追加し、`ansible-galaxy collection install` でインストールしてください:
 
 ```yaml
 collections:
   - name: community.general
+```
+
+```bash
+ansible-galaxy collection install -r requirements.yml
 ```
 
 ### Windows の前提条件

@@ -129,16 +129,13 @@
   when: develop_setting_uv_exclude_newer != ""
 
 # ---- Security scanning: semgrep + gitleaks via pre-commit ----
-# pre-commit本体をユーザー領域に導入し、フック実行基盤を準備する
-- name: Install pre-commit
-  ansible.builtin.pip:
+# pre-commit本体をaptで導入し、PEP 668環境でも失敗しないようにする
+- name: Install pre-commit package
+  ansible.builtin.apt:
     name: pre-commit
     state: present
-    extra_args: "--user"
-  register: precommit_install
-  until: precommit_install is succeeded
-  retries: 3
-  delay: 10
+    update_cache: true
+  become: true
 
 # グローバルGitフック用ディレクトリを作成する
 - name: Ensure global git-hooks directory exists
