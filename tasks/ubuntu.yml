@@ -6,6 +6,29 @@
       - ansible_distribution_version in develop_setting_supported_ubuntu_versions
     fail_msg: "This role supports Ubuntu 24.04 or 26.04 only."
 
+# ---- Resolve the target user (the SSH login user, not the become/sudo user) ----
+# gather_facts が become 配下で実行されると ansible_env.HOME / ansible_user_id が
+# root を指してしまうため、become を外した状態で実際の接続ユーザーを特定する
+- name: Detect SSH login user (before become)
+  ansible.builtin.command:
+    cmd: id -un
+  become: false
+  register: develop_setting_login_user_result
+  changed_when: false
+
+# 接続ユーザーのホームディレクトリを /etc/passwd から取得する
+- name: Get home directory of the SSH login user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ develop_setting_login_user_result.stdout | trim }}"
+  become: false
+
+# 以降のタスクが参照する適用先ユーザー/ホームディレクトリを確定させる
+- name: Set target user and home directory facts
+  ansible.builtin.set_fact:
+    develop_setting_target_user: "{{ develop_setting_login_user_result.stdout | trim }}"
+    develop_setting_target_home: "{{ getent_passwd[develop_setting_login_user_result.stdout | trim][4] }}"
+
 # Claude Code実行に必要なサンドボックス関連パッケージを導入する
 - name: Install Claude Code sandbox packages
   ansible.builtin.apt:
@@ -25,6 +48,7 @@
 - name: Check if Claude Code is already installed
   ansible.builtin.command:
     cmd: which claude
+  become: false
   register: claude_which
   changed_when: false
   failed_when: false
@@ -35,7 +59,8 @@
     cmd: "curl -fsSL {{ develop_setting_claude_install_url }} | bash"
     executable: /bin/bash
   environment:
-    HOME: "{{ ansible_env.HOME }}"
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
   when: claude_which.rc != 0
   changed_when: true
 
@@ -45,17 +70,17 @@
     name: "Update Claude Code"
     minute: "{{ develop_setting_claude_update_cron_minute }}"
     hour: "{{ develop_setting_claude_update_cron_hour }}"
-    job: "curl -fsSL {{ develop_setting_claude_install_url }} | bash >> {{ ansible_env.HOME }}/claude-update.log 2>&1"
-    user: "{{ ansible_user_id }}"
+    job: "curl -fsSL {{ develop_setting_claude_install_url }} | bash >> {{ develop_setting_target_home }}/claude-update.log 2>&1"
+    user: "{{ develop_setting_target_user }}"
     state: present
+  become: false
 
 # uvコマンドの有無を確認し、インストール要否を判定する
 - name: Check if uv is already installed
   ansible.builtin.shell:
-    cmd: "command -v uv"
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/bin:$PATH" && command -v uv'
     executable: /bin/bash
-  environment:
-    PATH: "{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  become: false
   register: uv_which
   changed_when: false
   failed_when: false
@@ -66,7 +91,8 @@
     cmd: "set -o pipefail && curl -fsSL {{ develop_setting_uv_install_url }} | sh"
     executable: /bin/bash
   environment:
-    HOME: "{{ ansible_env.HOME }}"
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
   register: uv_install
   until: uv_install is succeeded
   retries: 3
@@ -77,10 +103,9 @@
 # pnpmコマンドの有無を確認し、インストール要否を判定する
 - name: Check if pnpm is already installed
   ansible.builtin.shell:
-    cmd: "command -v pnpm"
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/share/pnpm:{{ develop_setting_target_home }}/.local/bin:$PATH" && command -v pnpm'
     executable: /bin/bash
-  environment:
-    PATH: "{{ ansible_env.HOME }}/.local/share/pnpm:{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}"
+  become: false
   register: pnpm_which
   changed_when: false
   failed_when: false
@@ -91,8 +116,9 @@
     cmd: "set -o pipefail && curl -fsSL {{ develop_setting_pnpm_install_url }} | sh -"
     executable: /bin/bash
   environment:
-    HOME: "{{ ansible_env.HOME }}"
+    HOME: "{{ develop_setting_target_home }}"
     SHELL: /bin/bash
+  become: false
   register: pnpm_install
   until: pnpm_install is succeeded
   retries: 3
@@ -104,28 +130,31 @@
 # npm/pnpmの新規公開直後パッケージ利用を遅延させる設定を ~/.npmrc に適用する
 - name: Configure .npmrc minimum-release-age for pnpm/npm (supply chain protection)
   ansible.builtin.lineinfile:
-    path: "{{ ansible_env.HOME }}/.npmrc"
+    path: "{{ develop_setting_target_home }}/.npmrc"
     regexp: '^minimum-release-age='
     line: "minimum-release-age={{ develop_setting_npm_minimum_release_age }}"
     create: true
-    mode: '0644'
+    mode: '0600'
+  become: false
 
 # uv設定ディレクトリを作成し、続く設定ファイル配置に備える
 - name: Ensure uv config directory exists
   ansible.builtin.file:
-    path: "{{ ansible_env.HOME }}/.config/uv"
+    path: "{{ develop_setting_target_home }}/.config/uv"
     state: directory
     mode: '0755'
+  become: false
   when: develop_setting_uv_exclude_newer != ""
 
 # uvのexclude-newerを設定し、最新過ぎるパッケージの利用を抑制する
 - name: Configure uv exclude-newer (supply chain protection)
   ansible.builtin.lineinfile:
-    path: "{{ ansible_env.HOME }}/.config/uv/uv.toml"
+    path: "{{ develop_setting_target_home }}/.config/uv/uv.toml"
     regexp: '^exclude-newer\s*='
     line: 'exclude-newer = "{{ develop_setting_uv_exclude_newer }}"'
     create: true
     mode: '0644'
+  become: false
   when: develop_setting_uv_exclude_newer != ""
 
 # ---- Security scanning: semgrep + gitleaks via pre-commit ----
@@ -143,6 +172,7 @@
     path: "{{ develop_setting_security_hooks_dir }}"
     state: directory
     mode: '0755'
+  become: false
 
 # semgrep/gitleaksを実行するpre-commit設定ファイルを配備する
 - name: Deploy global pre-commit config (semgrep + gitleaks)
@@ -150,6 +180,7 @@
     src: pre-commit-config.yaml.j2
     dest: "{{ develop_setting_security_precommit_config }}"
     mode: '0644'
+  become: false
 
 # グローバルpre-commitフックスクリプトを配置する
 - name: Deploy global pre-commit hook script
@@ -159,6 +190,7 @@
       #!/bin/sh
       exec pre-commit run --config "{{ develop_setting_security_precommit_config }}"
     mode: '0755'
+  become: false
 
 # GitのhooksPathをグローバル設定し、全リポジトリで同一フックを有効化する
 - name: Set global git core.hooksPath
@@ -166,6 +198,7 @@
     name: core.hooksPath
     value: "{{ develop_setting_security_hooks_dir }}"
     scope: global
+  become: false
 
 # ---- Claude Code user-level configuration (~/.claude) ----
 # ユーザー単位のClaude設定ディレクトリを作成する
@@ -173,9 +206,11 @@
   ansible.builtin.file:
     path: "{{ develop_setting_claude_config_dir }}"
     state: directory
-    mode: '0700'
+    mode: '0755'
+  become: false
 
 # claude-pluginsリポジトリをclone/updateする
+# become: false によりログインユーザーとして実行し、そのユーザーの ~/.ssh 配下の鍵で認証する
 - name: Clone or update claude-plugins repository
   ansible.builtin.shell:
     cmd: |
@@ -188,9 +223,11 @@
       fi
     executable: /bin/bash
   environment:
-    HOME: "{{ ansible_env.HOME }}"
+    HOME: "{{ develop_setting_target_home }}"
+    GIT_SSH_COMMAND: "{{ develop_setting_git_ssh_command }}"
   register: claude_plugins_sync
   changed_when: "'Already up to date.' not in claude_plugins_sync.stdout"
+  become: false
 
 # claude-pluginsのsetup.shでグローバルインストールを実行する
 - name: Run claude-plugins global setup script
@@ -199,7 +236,8 @@
     chdir: "{{ develop_setting_claude_plugins_linux_dir }}"
     executable: /bin/bash
   environment:
-    HOME: "{{ ansible_env.HOME }}"
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
 
 # ユーザー共通のCLAUDE.mdをテンプレートから配置する
 - name: Deploy user-level CLAUDE.md
@@ -207,6 +245,7 @@
     src: claude_CLAUDE.md.j2
     dest: "{{ develop_setting_claude_config_dir }}/CLAUDE.md"
     mode: '0644'
+  become: false
 
 # MCP設定を含むsettings.jsonをテンプレートから配置する
 - name: Deploy user-level Claude settings.json (includes MCP settings)
@@ -214,3 +253,4 @@
     src: claude_settings.json.j2
     dest: "{{ develop_setting_claude_config_dir }}/settings.json"
     mode: '0600'
+  become: false

@@ -63,6 +63,20 @@ ansible-galaxy collection install -r requirements.yml
     - role: develop_setting
 ```
 
+### 設定の適用先ユーザー（become / sudo 実行時の注意）
+
+この Role は **SSH でログインしたユーザー**（sudo する前のユーザー）のホームディレクトリに
+設定を配置します。Playbook 側で `become: true` を指定していても適用先は変わりません。
+
+- Ubuntu タスクの冒頭で `become` を外した状態の `id -un` と `getent passwd` により、
+  ログインユーザー名とそのホームディレクトリを検出し、
+  `develop_setting_target_user` / `develop_setting_target_home` に格納します
+- パッケージインストール（apt）のみ `become: true` で実行し、
+  ホーム配下へ書き込むタスクはすべて `become: false` でログインユーザーとして実行します
+
+`gather_facts` が become 配下で走ると `ansible_env.HOME` が `/root` を指すため、
+これらの値ではなく上記の検出結果を使用しています。
+
 ## サプライチェーン攻撃対策（パッケージマネージャークールダウン）
 
 この Role は、新しく公開されたパッケージを一定期間インストールできないよう  
@@ -168,8 +182,11 @@ Git for Windows には Git Bash が付属しており、git hooks は Git Bash �
 
 | 変数名 | デフォルト値 | 説明 |
 |---|---|---|
+| `develop_setting_target_user` | SSHログインユーザー | 設定の適用先ユーザー（Ubuntu タスク冒頭で自動検出） |
+| `develop_setting_target_home` | SSHログインユーザーのホーム | 設定の適用先ホームディレクトリ（同上） |
 | `develop_setting_claude_config_dir` | `~/.claude` | Claude 設定ディレクトリ（Ubuntu のみ） |
-| `develop_setting_claude_plugins_repo_url` | `https://github.com/toshibe678/claude-plugins.git` | cloneする `claude-plugins` のリポジトリURL |
+| `develop_setting_claude_plugins_repo_url` | `git@github.com:toshibe678/claude-plugins.git` | cloneする `claude-plugins` のリポジトリURL（SSH形式） |
+| `develop_setting_git_ssh_command` | `ssh -o StrictHostKeyChecking=accept-new` | clone/pull 時の `GIT_SSH_COMMAND` |
 | `develop_setting_claude_plugins_linux_dir` | `~/git/claude-plugins` | Ubuntu での clone 先ディレクトリ |
 | `develop_setting_claude_plugins_setup_options` | `--all --rules --hooks --commands --skills --global` | setup.sh 実行オプション |
 | `develop_setting_windows_from_wsl_enabled` | `false` | WSLからWindowsホーム配下へ設定するモードを有効化 |
@@ -204,8 +221,27 @@ Git for Windows には Git Bash が付属しており、git hooks は Git Bash �
 この Role は、`claude-plugins` を GitHub から clone し、`setup.sh` でグローバルインストールを実行します。
 
 - 実行コマンド: `./setup.sh --all --rules --hooks --commands --skills --global`
-- Ubuntu: `{{ ansible_env.HOME }}/git/claude-plugins` へ clone して実行
+- Ubuntu: `{{ develop_setting_target_home }}/git/claude-plugins`（SSHログインユーザーのホーム配下）へ clone して実行
 - Windows: Git Bash（`bash`）経由で `$HOME/git/claude-plugins` へ clone して実行
+
+#### 認証方式（SSH鍵）
+
+`claude-plugins` はプライベートリポジトリのため、**SSH鍵認証**で clone / pull します。
+HTTPS 形式のURLではユーザー名とパスワードを対話的に要求され、非対話実行の Ansible では失敗します。
+
+- URL は SSH 形式（`git@github.com:...`）を既定とし、
+  設定の適用先ユーザー（＝SSHログインユーザー）の `~/.ssh` 配下の鍵で認証します
+- clone / pull タスクは `become: false` で実行されるため、root ではなくログインユーザーの鍵が使われます
+- 初回接続時にホスト鍵の確認で停止しないよう、`GIT_SSH_COMMAND` に
+  `StrictHostKeyChecking=accept-new` を指定しています（未知のホスト鍵のみ自動登録し、
+  既知の鍵と不一致の場合は従来どおり失敗します）
+
+事前に対象ユーザーで以下が通ることを確認してください。
+
+```bash
+ssh -T git@github.com
+```
+
 - `settings.json` は Ubuntu / Windows 共通で `$HOME/.claude/hooks/*.sh` を `bash` 経由で呼び出す前提
 
 ### WSL経由でWindows設定を適用する方法

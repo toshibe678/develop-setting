@@ -4,6 +4,12 @@ develop_setting_supported_ubuntu_versions:
   - "24.04"
   - "26.04"
 
+# 設定の適用先ユーザー（sudo/becomeする前のSSH接続ユーザー）
+# ubuntu.yml 冒頭の検出タスクで実測値に上書きされる。ここでの値は
+# become を使わない実行や、検出タスク実行前に参照された場合のフォールバック。
+develop_setting_target_user: "{{ ansible_user_id }}"
+develop_setting_target_home: "{{ ansible_env.HOME }}"
+
 develop_setting_claude_install_url: "https://claude.ai/install.sh"
 develop_setting_uv_install_url: "https://astral.sh/uv/install.sh"
 develop_setting_pnpm_install_url: "https://get.pnpm.io/install.sh"
@@ -15,8 +21,8 @@ develop_setting_claude_update_cron_minute: "0"
 develop_setting_claude_update_cron_hour: "4"
 
 # Security scanning: semgrep + gitleaks via pre-commit
-develop_setting_security_hooks_dir: "{{ ansible_env.HOME }}/.git-hooks"
-develop_setting_security_precommit_config: "{{ ansible_env.HOME }}/.pre-commit-config.yaml"
+develop_setting_security_hooks_dir: "{{ develop_setting_target_home }}/.git-hooks"
+develop_setting_security_precommit_config: "{{ develop_setting_target_home }}/.pre-commit-config.yaml"
 develop_setting_gitleaks_rev: "v8.18.0"
 develop_setting_semgrep_rev: "v1.68.0"
 
@@ -28,11 +34,15 @@ develop_setting_npm_minimum_release_age: "7"
 develop_setting_uv_exclude_newer: ""
 
 # Claude Code user-level configuration (~/.claude)
-develop_setting_claude_config_dir: "{{ ansible_env.HOME }}/.claude"
+develop_setting_claude_config_dir: "{{ develop_setting_target_home }}/.claude"
 
 # claude-plugins global setup configuration
-develop_setting_claude_plugins_repo_url: "https://github.com/toshibe678/claude-plugins.git"
-develop_setting_claude_plugins_linux_dir: "{{ ansible_env.HOME }}/git/claude-plugins"
+# SSH形式のURLを使い、対象ユーザーの ~/.ssh 配下の鍵で認証する
+# （HTTPS形式ではプライベートリポジトリでユーザー名/パスワードを対話要求されて失敗する）
+develop_setting_claude_plugins_repo_url: "git@github.com:toshibe678/claude-plugins.git"
+# git のSSH接続コマンド。未知のホスト鍵は初回のみ自動登録し、非対話実行での停止を防ぐ
+develop_setting_git_ssh_command: "ssh -o StrictHostKeyChecking=accept-new"
+develop_setting_claude_plugins_linux_dir: "{{ develop_setting_target_home }}/git/claude-plugins"
 develop_setting_claude_plugins_setup_options: "--all --rules --hooks --commands --skills --global"
 
 # WSLからWindowsホーム配下へ設定を適用するモード

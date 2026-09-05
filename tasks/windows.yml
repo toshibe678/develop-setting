@@ -75,6 +75,7 @@
 - name: Clone/update claude-plugins and run global setup (Windows)
   ansible.windows.win_shell: >-
     bash -lc "set -euo pipefail;
+    export GIT_SSH_COMMAND=\"{{ develop_setting_git_ssh_command }}\";
     mkdir -p \"$HOME/git\";
     if [ -d \"$HOME/git/claude-plugins/.git\" ]; then
       git -C \"$HOME/git/claude-plugins\" pull --ff-only;

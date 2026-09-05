@@ -26,6 +26,7 @@
     path: "{{ develop_setting_windows_claude_config_dir }}"
     state: directory
     mode: '0755'
+  become: false
 
 # WSL上でclaude-pluginsリポジトリをWindowsホーム配下へclone/updateする
 - name: Clone or update claude-plugins repository under Windows home from WSL
@@ -39,8 +40,11 @@
         git clone "{{ develop_setting_claude_plugins_repo_url }}" "{{ develop_setting_claude_plugins_windows_wsl_dir }}"
       fi
     executable: /bin/bash
+  environment:
+    GIT_SSH_COMMAND: "{{ develop_setting_git_ssh_command }}"
   register: claude_plugins_windows_wsl_sync
   changed_when: "'Already up to date.' not in claude_plugins_windows_wsl_sync.stdout"
+  become: false
 
 # WSL上でHOMEをWindowsホームに向けてsetup.shを実行し、~/.claudeへグローバル配置する
 - name: Run claude-plugins global setup script for Windows home from WSL
@@ -50,6 +54,7 @@
     executable: /bin/bash
   environment:
     HOME: "{{ develop_setting_windows_home_dir }}"
+  become: false
 
 # Windowsホーム配下へユーザーレベルのCLAUDE.mdを配置する
 - name: Deploy user-level CLAUDE.md to Windows home from WSL
@@ -57,6 +62,7 @@
     src: claude_CLAUDE.md.j2
     dest: "{{ develop_setting_windows_claude_config_dir }}/CLAUDE.md"
     mode: '0644'
+  become: false
 
 # Windowsホーム配下へユーザーレベルのsettings.jsonを配置する
 - name: Deploy user-level Claude settings.json to Windows home from WSL
@@ -64,3 +70,4 @@
     src: claude_settings.json.j2
     dest: "{{ develop_setting_windows_claude_config_dir }}/settings.json"
     mode: '0644'
+  become: false
