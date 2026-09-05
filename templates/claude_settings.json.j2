@@ -1,4 +1,16 @@
 {
+  "model": "opus",
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "planning-with-files@planning-with-files": true,
+    "code-review@claude-plugins-official": true,
+    "document-skills@anthropic-agent-skills": true,
+    "andrej-karpathy-skills@karpathy-skills": true,
+    "aws-core@agent-toolkit-for-aws": true,
+    "aws-data-analytics@agent-toolkit-for-aws": true,
+    "aws-agents@agent-toolkit-for-aws": true,
+    "pskoett-ai-skills@pskoett-skills": true
+  },
   "cleanupPeriodDays": 9999,
   "attribution": {
     "commit": "",
@@ -17,6 +29,30 @@
         "~/.aws/credentials",
         "~/.ssh"
       ]
+    },
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      }
+    },
+    "agent-toolkit-for-aws": {
+      "source": {
+        "source": "github",
+        "repo": "aws/agent-toolkit-for-aws"
+      }
+    },
+    "pskoett-skills": {
+      "source": {
+        "source": "github",
+        "repo": "pskoett/pskoett-skills"
+      }
     },
     "network": {
       "allowedDomains": [
