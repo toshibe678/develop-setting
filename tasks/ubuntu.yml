@@ -37,6 +37,13 @@
     update_cache: true
   become: true
 
+# Claude Codeのフックが使うパッケージを導入する
+- name: Install Claude Code hook packages
+  ansible.builtin.apt:
+    name: "{{ develop_setting_claude_hook_packages }}"
+    state: present
+  become: true
+
 # claude-plugins取得に必要なgitを導入する
 - name: Install git package
   ansible.builtin.apt:

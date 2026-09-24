@@ -17,6 +17,14 @@ develop_setting_claude_sandbox_packages:
   - bubblewrap
   - libcap2-bin
   - libseccomp2
+# Claude Codeのフック（~/.claude/hooks/*.sh）が入出力のJSON処理に使うパッケージ
+develop_setting_claude_hook_packages:
+  - jq
+# Windowsではjqの公式リリースバイナリを配置する（WinRM経由ではwingetが使えないため）
+# バージョン更新時は https://github.com/jqlang/jq/releases の sha256sum.txt で checksum も更新する
+develop_setting_jq_windows_version: "1.8.2"
+develop_setting_jq_windows_url: "https://github.com/jqlang/jq/releases/download/jq-{{ develop_setting_jq_windows_version }}/jq-windows-amd64.exe"
+develop_setting_jq_windows_checksum: "sha256:a6fc67fedaf9128a3309a1e2ebb8b986aeccf70122ee46d2cb4849e423f0c627"
 develop_setting_claude_update_cron_minute: "0"
 develop_setting_claude_update_cron_hour: "4"
 

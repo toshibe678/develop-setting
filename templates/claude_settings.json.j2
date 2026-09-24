@@ -1,5 +1,6 @@
 {
   "model": "opus",
+  "language": "japanese",
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
     "planning-with-files@planning-with-files": true,
@@ -11,25 +12,7 @@
     "aws-agents@agent-toolkit-for-aws": true,
     "pskoett-ai-skills@pskoett-skills": true
   },
-  "cleanupPeriodDays": 9999,
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "MAX_MCP_OUTPUT_TOKENS": "50000",
-    "ENABLE_TOOL_SEARCH": "auto:5 claude"
-  },
-  "sandbox": {
-    "enabled": true,
-    "allowUnsandboxedCommands": true,
-    "filesystem": {
-      "denyRead": [
-        "~/.aws/credentials",
-        "~/.ssh"
-      ]
-    },
+  "extraKnownMarketplaces": {
     "anthropic-agent-skills": {
       "source": {
         "source": "github",
@@ -53,6 +36,26 @@
         "source": "github",
         "repo": "pskoett/pskoett-skills"
       }
+    }
+  },
+  "cleanupPeriodDays": 9999,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "MAX_MCP_OUTPUT_TOKENS": "50000",
+    "ENABLE_TOOL_SEARCH": "auto:5 claude"
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": true,
+    "filesystem": {
+      "denyRead": [
+        "~/.aws/credentials",
+        "~/.ssh"
+      ]
     },
     "network": {
       "allowedDomains": [
@@ -65,7 +68,7 @@
     }
   },
   "permissions": {
-    "defaultMode": "default",
+    "defaultMode": "acceptEdits",
     "disableBypassPermissionsMode": "disable",
     "allow": [
       "Read",
@@ -73,26 +76,37 @@
       "Grep",
       "Bash(wget *)",
       "Bash(curl *)",
+      "Bash(pnpm install)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm add *)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm dlx *)",
       "Bash(pnpm run *)",
       "Bash(pnpm test *)",
       "Bash(pnpm build *)",
       "Bash(pnpm lint *)",
       "Bash(pnpm typecheck)",
+      "Bash(pnpm typecheck *)",
       "Bash(git status)",
       "Bash(git diff *)",
       "Bash(git log *)",
+      "Bash(git show *)",
       "Bash(git branch *)",
       "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git stash *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git reset --hard *)",
-      "Bash(gh pr *)",
-      "Bash(gh issue *)",
-      "Bash(npx prisma *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr status *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(pnpm exec prisma *)",
       "Bash(* --version)",
       "Bash(* --help)",
-      "Edit(/packages/**)",
-      "Write(/packages/**)",
       "Bash(docker *)",
       "Bash(docker-compose *)",
       "Bash(nohup python *)",
@@ -104,6 +118,35 @@
       "WebFetch(domain:dev.classmethod.jp)",
       "WebFetch(domain:awslabs.github.io)"
     ],
+    "ask": [
+      "Bash(rm *)",
+      "Bash(git clean *)",
+      "Bash(docker rm *)",
+      "Bash(docker rmi *)",
+      "Bash(docker volume rm *)",
+      "Bash(docker system prune *)",
+      "Bash(docker compose down -v *)",
+      "Bash(git reset --hard *)",
+      "Bash(git rebase *)",
+      "Bash(git commit --amend *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push)",
+      "Bash(git push *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh pr comment *)",
+      "Bash(gh issue create *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh release *)",
+      "Bash(docker push *)",
+      "Bash(pnpm publish *)",
+      "Bash(ansible-playbook *)",
+      "Bash(terraform apply *)",
+      "Bash(terraform destroy *)",
+      "Bash(cdk deploy *)",
+      "Bash(aws *)"
+    ],
     "deny": [
       "Read(./.env)",
       "Read(./.env.*)",
@@ -111,7 +154,6 @@
       "Read(./config/credentials.json)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
-      "Bash(rm -rf *)",
       "Edit(/.github/workflows/**)",
       "Bash(chmod 777 *)"
     ]

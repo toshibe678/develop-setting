@@ -71,6 +71,28 @@
     msg: "Git Bash is required to run claude-plugins setup.sh on Windows. Please install Git for Windows and ensure 'bash' is available in PATH."
   when: win_bash_check.rc != 0
 
+# Claude Codeのフックが使うjqの配置先ディレクトリを作成する
+- name: Ensure user local bin directory exists (Windows)
+  ansible.windows.win_file:
+    path: "{{ ansible_env.USERPROFILE }}\\.local\\bin"
+    state: directory
+
+# Claude Codeのフックが使うjqを公式リリースから配置する（checksumで改ざんを検知）
+- name: Install jq for Claude Code hooks (Windows)
+  ansible.windows.win_get_url:
+    url: "{{ develop_setting_jq_windows_url }}"
+    dest: "{{ ansible_env.USERPROFILE }}\\.local\\bin\\jq.exe"
+    checksum: "{{ develop_setting_jq_windows_checksum.split(':')[1] }}"
+    checksum_algorithm: sha256
+    force: false
+
+# Git Bash経由で実行されるフックからjqを参照できるよう、ユーザーPATHに追加する
+- name: Add user local bin to user PATH (Windows)
+  ansible.windows.win_path:
+    elements: "{{ ansible_env.USERPROFILE }}\\.local\\bin"
+    scope: user
+    state: present
+
 # claude-pluginsリポジトリをclone/updateし、setup.shをグローバル実行する
 - name: Clone/update claude-plugins and run global setup (Windows)
   ansible.windows.win_shell: >-

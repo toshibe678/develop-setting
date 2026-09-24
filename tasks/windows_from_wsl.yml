@@ -28,6 +28,45 @@
     mode: '0755'
   become: false
 
+# Claude Codeのフックが使うjqの配置先ディレクトリをWindowsホーム配下に作成する
+- name: Ensure Windows user local bin directory exists from WSL
+  ansible.builtin.file:
+    path: "{{ develop_setting_windows_home_dir }}/.local/bin"
+    state: directory
+    mode: '0755'
+  become: false
+
+# Claude Codeのフックが使うjqを公式リリースから配置する（checksumで改ざんを検知）
+- name: Install jq for Claude Code hooks to Windows home from WSL
+  ansible.builtin.get_url:
+    url: "{{ develop_setting_jq_windows_url }}"
+    dest: "{{ develop_setting_windows_home_dir }}/.local/bin/jq.exe"
+    checksum: "{{ develop_setting_jq_windows_checksum }}"
+    mode: '0755'
+  become: false
+
+# Git Bash経由で実行されるフックからjqを参照できるよう、WindowsのユーザーPATHに追加する
+- name: Add user local bin to Windows user PATH from WSL
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      # WSLENV でWindows側プロセスへ配置先パスを環境変数として渡す
+      export JQ_BIN_DIR="$(wslpath -w "{{ develop_setting_windows_home_dir }}/.local/bin")"
+      export WSLENV="JQ_BIN_DIR${WSLENV:+:$WSLENV}"
+      powershell.exe -NoProfile -Command '
+        $dir = $env:JQ_BIN_DIR;
+        $path = [Environment]::GetEnvironmentVariable("Path", "User");
+        if (($path -split ";") -contains $dir) { "unchanged" }
+        else {
+          if ($path) { $new = $path.TrimEnd(";") + ";" + $dir } else { $new = $dir };
+          [Environment]::SetEnvironmentVariable("Path", $new, "User");
+          "changed"
+        }' | tr -d '\r'
+    executable: /bin/bash
+  register: windows_user_path_result
+  changed_when: windows_user_path_result.stdout | trim == 'changed'
+  become: false
+
 # WSL上でclaude-pluginsリポジトリをWindowsホーム配下へclone/updateする
 - name: Clone or update claude-plugins repository under Windows home from WSL
   ansible.builtin.shell:
