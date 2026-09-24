@@ -9,7 +9,7 @@
 # ---- Supply chain attack countermeasures: package manager cooldown ----
 # npm/pnpmの新規公開直後パッケージ利用を遅延させる設定を .npmrc に適用する
 - name: Configure .npmrc minimum-release-age for pnpm/npm (supply chain protection, Windows)
-  ansible.windows.win_lineinfile:
+  community.windows.win_lineinfile:
     path: "{{ ansible_env.USERPROFILE }}\\.npmrc"
     regexp: '^minimum-release-age='
     line: "minimum-release-age={{ develop_setting_npm_minimum_release_age }}"

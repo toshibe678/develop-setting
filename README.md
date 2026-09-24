@@ -36,6 +36,8 @@ roles:
 
 collections:
   - name: community.general
+  - name: ansible.windows    # Windows ターゲットを使う場合
+  - name: community.windows  # Windows ターゲットを使う場合
 ```
 
 バージョンを固定したい場合は `version` を指定します:
@@ -142,11 +144,15 @@ semgrep (静的解析) と gitleaks (シークレット検出) が自動実行�
 ### 必要なコレクション
 
 Ubuntu ターゲットで `community.general.git_config` モジュールを使用します。  
+Windows ターゲットでは `ansible.windows`（`win_file` / `win_get_url` 等）と
+`community.windows`（`win_lineinfile`）のモジュールを使用します。  
 `requirements.yml` に追加し、`ansible-galaxy collection install` でインストールしてください:
 
 ```yaml
 collections:
   - name: community.general
+  - name: ansible.windows    # Windows ターゲットを使う場合
+  - name: community.windows  # Windows ターゲットを使う場合
 ```
 
 ```bash
