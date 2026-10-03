@@ -181,8 +181,6 @@ Git for Windows には Git Bash が付属しており、git hooks は Git Bash �
 |---|---|
 | `CLAUDE.md` | 標準のグローバル指示文を含む、ユーザーレベルの Claude 向け指示ファイル |
 | `settings.json` | Claude Code の設定（MCP サーバー設定を含む） |
-| `~/.claude/hooks/` | `claude-plugins` の setup によりグローバル配置される hooks |
-| `~/.claude/commands/` | `claude-plugins` の setup によりグローバル配置される commands |
 
 ### カスタマイズ可能な変数
 
@@ -191,16 +189,12 @@ Git for Windows には Git Bash が付属しており、git hooks は Git Bash �
 | `develop_setting_target_user` | SSHログインユーザー | 設定の適用先ユーザー（Ubuntu タスク冒頭で自動検出） |
 | `develop_setting_target_home` | SSHログインユーザーのホーム | 設定の適用先ホームディレクトリ（同上） |
 | `develop_setting_claude_config_dir` | `~/.claude` | Claude 設定ディレクトリ（Ubuntu のみ） |
-| `develop_setting_claude_plugins_repo_url` | `git@github.com:toshibe678/claude-plugins.git` | cloneする `claude-plugins` のリポジトリURL（SSH形式） |
 | `develop_setting_git_ssh_command` | `ssh -o StrictHostKeyChecking=accept-new` | clone/pull 時の `GIT_SSH_COMMAND` |
-| `develop_setting_claude_plugins_linux_dir` | `~/git/claude-plugins` | Ubuntu での clone 先ディレクトリ |
-| `develop_setting_claude_plugins_setup_options` | `--all --rules --hooks --commands --skills --global` | setup.sh 実行オプション |
 | `develop_setting_windows_from_wsl_enabled` | `false` | WSLからWindowsホーム配下へ設定するモードを有効化 |
 | `develop_setting_windows_from_wsl_mount_dir` | `/mnt/` | WSLでのWindowsマウント基点 |
 | `develop_setting_windows_user_name` | `""` | 設定対象のWindowsユーザー名 |
 | `develop_setting_windows_home_dir` | `/mnt/c/Users/{user}` | WSL経由設定時のWindowsホームパス |
 | `develop_setting_windows_claude_config_dir` | `/mnt/c/Users/{user}/.claude` | WSL経由設定時のClaude設定パス |
-| `develop_setting_claude_plugins_windows_wsl_dir` | `/mnt/c/Users/{user}/git/claude-plugins` | WSL経由設定時のclaude-plugins配置先 |
 
 ### `CLAUDE.md` の生成方針
 
@@ -221,34 +215,6 @@ Git for Windows には Git Bash が付属しており、git hooks は Git Bash �
 - `permissions.allow` は両ファイルの許可設定を統合
 - `hooks.PreToolUse` は Bash 用フックを1つの matcher にまとめて統合
 - hook の `command` は `$CLAUDE_PROJECT_DIR` ではなく、ホーム配下の `~/.claude/hooks/` を参照する
-
-### `claude-plugins` の配備方針
-
-この Role は、`claude-plugins` を GitHub から clone し、`setup.sh` でグローバルインストールを実行します。
-
-- 実行コマンド: `./setup.sh --all --rules --hooks --commands --skills --global`
-- Ubuntu: `{{ develop_setting_target_home }}/git/claude-plugins`（SSHログインユーザーのホーム配下）へ clone して実行
-- Windows: Git Bash（`bash`）経由で `$HOME/git/claude-plugins` へ clone して実行
-
-#### 認証方式（SSH鍵）
-
-`claude-plugins` はプライベートリポジトリのため、**SSH鍵認証**で clone / pull します。
-HTTPS 形式のURLではユーザー名とパスワードを対話的に要求され、非対話実行の Ansible では失敗します。
-
-- URL は SSH 形式（`git@github.com:...`）を既定とし、
-  設定の適用先ユーザー（＝SSHログインユーザー）の `~/.ssh` 配下の鍵で認証します
-- clone / pull タスクは `become: false` で実行されるため、root ではなくログインユーザーの鍵が使われます
-- 初回接続時にホスト鍵の確認で停止しないよう、`GIT_SSH_COMMAND` に
-  `StrictHostKeyChecking=accept-new` を指定しています（未知のホスト鍵のみ自動登録し、
-  既知の鍵と不一致の場合は従来どおり失敗します）
-
-事前に対象ユーザーで以下が通ることを確認してください。
-
-```bash
-ssh -T git@github.com
-```
-
-- `settings.json` は Ubuntu / Windows 共通で `$HOME/.claude/hooks/*.sh` を `bash` 経由で呼び出す前提
 
 ### WSL経由でWindows設定を適用する方法
 

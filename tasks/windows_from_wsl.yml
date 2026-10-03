@@ -67,34 +67,6 @@
   changed_when: windows_user_path_result.stdout | trim == 'changed'
   become: false
 
-# WSL上でclaude-pluginsリポジトリをWindowsホーム配下へclone/updateする
-- name: Clone or update claude-plugins repository under Windows home from WSL
-  ansible.builtin.shell:
-    cmd: |
-      set -o pipefail
-      if [ -d "{{ develop_setting_claude_plugins_windows_wsl_dir }}/.git" ]; then
-        git -C "{{ develop_setting_claude_plugins_windows_wsl_dir }}" pull --ff-only
-      else
-        mkdir -p "$(dirname "{{ develop_setting_claude_plugins_windows_wsl_dir }}")"
-        git clone "{{ develop_setting_claude_plugins_repo_url }}" "{{ develop_setting_claude_plugins_windows_wsl_dir }}"
-      fi
-    executable: /bin/bash
-  environment:
-    GIT_SSH_COMMAND: "{{ develop_setting_git_ssh_command }}"
-  register: claude_plugins_windows_wsl_sync
-  changed_when: "'Already up to date.' not in claude_plugins_windows_wsl_sync.stdout"
-  become: false
-
-# WSL上でHOMEをWindowsホームに向けてsetup.shを実行し、~/.claudeへグローバル配置する
-- name: Run claude-plugins global setup script for Windows home from WSL
-  ansible.builtin.shell:
-    cmd: "./setup.sh {{ develop_setting_claude_plugins_setup_options }}"
-    chdir: "{{ develop_setting_claude_plugins_windows_wsl_dir }}"
-    executable: /bin/bash
-  environment:
-    HOME: "{{ develop_setting_windows_home_dir }}"
-  become: false
-
 # Windowsホーム配下へユーザーレベルのCLAUDE.mdを配置する
 - name: Deploy user-level CLAUDE.md to Windows home from WSL
   ansible.builtin.template:

@@ -44,14 +44,10 @@ develop_setting_uv_exclude_newer: ""
 # Claude Code user-level configuration (~/.claude)
 develop_setting_claude_config_dir: "{{ develop_setting_target_home }}/.claude"
 
-# claude-plugins global setup configuration
 # SSH形式のURLを使い、対象ユーザーの ~/.ssh 配下の鍵で認証する
 # （HTTPS形式ではプライベートリポジトリでユーザー名/パスワードを対話要求されて失敗する）
-develop_setting_claude_plugins_repo_url: "git@github.com:toshibe678/claude-plugins.git"
 # git のSSH接続コマンド。未知のホスト鍵は初回のみ自動登録し、非対話実行での停止を防ぐ
 develop_setting_git_ssh_command: "ssh -o StrictHostKeyChecking=accept-new"
-develop_setting_claude_plugins_linux_dir: "{{ develop_setting_target_home }}/git/claude-plugins"
-develop_setting_claude_plugins_setup_options: "--all --rules --hooks --commands --skills --global"
 
 # WSLからWindowsホーム配下へ設定を適用するモード
 develop_setting_windows_from_wsl_enabled: false
@@ -59,4 +55,3 @@ develop_setting_windows_from_wsl_mount_dir: "/mnt/"
 develop_setting_windows_user_name: ""
 develop_setting_windows_home_dir: "{{ develop_setting_windows_from_wsl_mount_dir }}c/Users/{{ develop_setting_windows_user_name }}"
 develop_setting_windows_claude_config_dir: "{{ develop_setting_windows_home_dir }}/.claude"
-develop_setting_claude_plugins_windows_wsl_dir: "{{ develop_setting_windows_home_dir }}/git/claude-plugins"

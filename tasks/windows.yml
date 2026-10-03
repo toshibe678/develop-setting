@@ -65,12 +65,6 @@
   changed_when: false
   failed_when: false
 
-# Git Bashがない場合は処理を停止する
-- name: Fail when Git Bash is not available (Windows)
-  ansible.builtin.fail:
-    msg: "Git Bash is required to run claude-plugins setup.sh on Windows. Please install Git for Windows and ensure 'bash' is available in PATH."
-  when: win_bash_check.rc != 0
-
 # Claude Codeのフックが使うjqの配置先ディレクトリを作成する
 - name: Ensure user local bin directory exists (Windows)
   ansible.windows.win_file:
@@ -92,20 +86,6 @@
     elements: "{{ ansible_env.USERPROFILE }}\\.local\\bin"
     scope: user
     state: present
-
-# claude-pluginsリポジトリをclone/updateし、setup.shをグローバル実行する
-- name: Clone/update claude-plugins and run global setup (Windows)
-  ansible.windows.win_shell: >-
-    bash -lc "set -euo pipefail;
-    export GIT_SSH_COMMAND=\"{{ develop_setting_git_ssh_command }}\";
-    mkdir -p \"$HOME/git\";
-    if [ -d \"$HOME/git/claude-plugins/.git\" ]; then
-      git -C \"$HOME/git/claude-plugins\" pull --ff-only;
-    else
-      git clone \"{{ develop_setting_claude_plugins_repo_url }}\" \"$HOME/git/claude-plugins\";
-    fi;
-    cd \"$HOME/git/claude-plugins\";
-    ./setup.sh {{ develop_setting_claude_plugins_setup_options }}"
 
 # ユーザー共通のCLAUDE.mdをテンプレートから配置する
 - name: Deploy user-level CLAUDE.md (Windows)
