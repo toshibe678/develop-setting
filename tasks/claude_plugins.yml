@@ -1,0 +1,88 @@
+---
+# ---- Claude Code plugins / skills ----
+# claude / npx は ~/.local/bin 等にあるため、PATH を補って実行する
+# 現在登録済みのマーケットプレイス一覧を取得する
+- name: List Claude Code marketplaces
+  ansible.builtin.shell:
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/bin:$PATH" && claude plugin marketplace list'
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  register: develop_setting_marketplace_list
+  changed_when: false
+
+# 未登録のマーケットプレイスのみ追加する
+- name: Add Claude Code marketplaces
+  ansible.builtin.shell:
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/bin:$PATH" && claude plugin marketplace add {{ item.source }}'
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  loop: "{{ develop_setting_claude_marketplaces }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in develop_setting_marketplace_list.stdout
+  register: develop_setting_marketplace_add
+  until: develop_setting_marketplace_add is succeeded
+  retries: 3
+  delay: 10
+  changed_when: true
+
+# 導入済みプラグイン一覧を取得する（マーケットプレイス追加後に取得）
+- name: List installed Claude Code plugins
+  ansible.builtin.shell:
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/bin:$PATH" && claude plugin list --json'
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  register: develop_setting_plugin_list
+  changed_when: false
+
+# 未導入のプラグインのみインストールする
+- name: Install Claude Code plugins
+  ansible.builtin.shell:
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/bin:$PATH" && claude plugin install {{ item }}'
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  loop: "{{ develop_setting_claude_plugins }}"
+  when: item not in (develop_setting_plugin_list.stdout | from_json | map(attribute='id') | list)
+  register: develop_setting_plugin_install
+  until: develop_setting_plugin_install is succeeded
+  retries: 3
+  delay: 10
+  changed_when: true
+
+# npx skills で導入するスキルのうち、~/.agents/skills に無いものだけ導入する
+- name: Check installed npx skills
+  ansible.builtin.stat:
+    path: "{{ develop_setting_target_home }}/.agents/skills/{{ item.skill }}"
+  become: false
+  loop: "{{ develop_setting_npx_skills }}"
+  loop_control:
+    label: "{{ item.skill }}"
+  register: develop_setting_npx_skill_stat
+
+- name: Install npx skills
+  ansible.builtin.shell:
+    cmd: >-
+      export PATH="{{ develop_setting_target_home }}/.local/share/pnpm:{{ develop_setting_target_home }}/.local/bin:$PATH" &&
+      npx -y skills add {{ item.item.source }}
+      {{ '--skill ' ~ item.item.skill if item.item.add_skill_option | default(true) else '' }} -g -y
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  loop: "{{ develop_setting_npx_skill_stat.results }}"
+  loop_control:
+    label: "{{ item.item.skill }}"
+  when: not item.stat.exists
+  register: develop_setting_npx_skill_install
+  until: develop_setting_npx_skill_install is succeeded
+  retries: 3
+  delay: 10
+  changed_when: true

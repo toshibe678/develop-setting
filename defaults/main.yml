@@ -55,3 +55,30 @@ develop_setting_windows_from_wsl_mount_dir: "/mnt/"
 develop_setting_windows_user_name: ""
 develop_setting_windows_home_dir: "{{ develop_setting_windows_from_wsl_mount_dir }}c/Users/{{ develop_setting_windows_user_name }}"
 develop_setting_windows_claude_config_dir: "{{ develop_setting_windows_home_dir }}/.claude"
+
+# Claude Code プラグイン/スキルの自動導入
+# 追加するマーケットプレイス（name は `claude plugin marketplace list` に表示される名前）
+develop_setting_claude_marketplaces:
+  - { name: planning-with-files, source: OthmanAdi/planning-with-files }
+  - { name: anthropic-agent-skills, source: anthropics/skills }
+  - { name: karpathy-skills, source: forrestchang/andrej-karpathy-skills }
+  - { name: agent-toolkit-for-aws, source: aws/agent-toolkit-for-aws }
+  - { name: pskoett-skills, source: pskoett/pskoett-skills }
+# 導入するプラグイン（plugin@marketplace 形式）
+develop_setting_claude_plugins:
+  - superpowers@claude-plugins-official
+  - planning-with-files@planning-with-files
+  - code-review@claude-plugins-official
+  - document-skills@anthropic-agent-skills
+  - andrej-karpathy-skills@karpathy-skills
+  - aws-core@agent-toolkit-for-aws
+  - aws-data-analytics@agent-toolkit-for-aws
+  - aws-agents@agent-toolkit-for-aws
+  - pskoett-ai-skills@pskoett-skills
+# `npx skills add` で導入するスキル（skill は導入後の ~/.agents/skills/<skill> で冪等判定する）
+develop_setting_npx_skills:
+  - { skill: find-skills, source: vercel-labs/skills }
+  - { skill: agent-browser, source: "https://github.com/vercel-labs/agent-browser" }
+  - { skill: browser-use, source: "https://github.com/browser-use/browser-use" }
+  - { skill: skill-creator, source: "https://github.com/anthropics/skills" }
+  - { skill: kaizen, source: "neolabhq/context-engineering-kit@kaizen", add_skill_option: false }
