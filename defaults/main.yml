@@ -82,3 +82,10 @@ develop_setting_npx_skills:
   - { skill: browser-use, source: "https://github.com/browser-use/browser-use" }
   - { skill: skill-creator, source: "https://github.com/anthropics/skills" }
   - { skill: kaizen, source: "neolabhq/context-engineering-kit@kaizen", add_skill_option: false }
+
+# AI-DLC（ループとハーネス）
+develop_setting_bun_install_url: "https://bun.sh/install"
+develop_setting_aidlc_install_url: "https://github.com/awslabs/aidlc-workflows/releases/latest/download/install.sh"
+# AI-DLC のインストーラを実行するディレクトリ（全ローカルリポジトリのルート）
+develop_setting_aidlc_workdir: "{{ develop_setting_target_home }}/git"
+develop_setting_aidlc_harness: "claude"

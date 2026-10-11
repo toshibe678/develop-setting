@@ -1,0 +1,25 @@
+#!/bin/bash
+# Claude Code の Stop フック: AIDLC の Construction ステージでテストが通るまで応答を終了させない
+# ~/.claude/hooks に置いて全プロジェクト共通で使う（対象は Claude Code が渡す $CLAUDE_PROJECT_DIR）
+cd "$CLAUDE_PROJECT_DIR" || exit 0
+
+STATE_FILE="aidlc-docs/aidlc-state.md"
+
+# AIDLC が Construction (Code Generation / Build and Test) ステージにある場合のみループを有効化
+if [ -f "$STATE_FILE" ] && grep -E -q "Code Generation|Build and Test" "$STATE_FILE"; then
+  echo "🔄 [loop-eng] AIDLC ビルド・テストループを実行中..." >&2
+
+  # プロジェクトのテストコマンドを実行 (npm test, pytest 等に変更可)
+  TEST_OUTPUT=$(npm test 2>&1)
+  TEST_CODE=$?
+
+  if [ $TEST_CODE -ne 0 ]; then
+    echo "❌ [loop-eng] テスト未通過。エラーログをコンテキストに返却し、自律修正を行います:" >&2
+    echo "$TEST_OUTPUT" >&2
+    # exit 2 を返すと Claude Code は応答を終了できず、修正プロンプトとしてログを受け取ります
+    exit 2
+  fi
+  echo "✅ [loop-eng] 全テスト通過。AIDLC の次のステージへ進行します。" >&2
+fi
+
+exit 0

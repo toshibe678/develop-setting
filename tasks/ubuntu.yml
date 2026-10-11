@@ -235,3 +235,7 @@
 # Claude Codeのプラグイン/スキルを導入する
 - name: Include Claude Code plugins tasks
   ansible.builtin.include_tasks: claude_plugins.yml
+
+# AI-DLC（Bun / aidlc / loop_verify.sh）を導入する
+- name: Include AI-DLC tasks
+  ansible.builtin.include_tasks: aidlc.yml

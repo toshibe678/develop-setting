@@ -1,0 +1,116 @@
+---
+# ---- AI-DLC: Bun + aidlc + Stop hook (loop_verify.sh) ----
+# Bunのインストーラが必要とするunzipを導入する
+- name: Install unzip for Bun installer
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+  become: true
+
+# bunコマンドの有無を確認し、インストール要否を判定する
+- name: Check if Bun is already installed
+  ansible.builtin.shell:
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.bun/bin:$PATH" && command -v bun'
+    executable: /bin/bash
+  become: false
+  register: develop_setting_bun_which
+  changed_when: false
+  failed_when: false
+
+# 未導入時のみ公式インストーラでBun（AIDLCコアエンジンの実行環境）を導入する
+- name: Install Bun via official install script
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_bun_install_url }} | bash"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  register: develop_setting_bun_install
+  until: develop_setting_bun_install is succeeded
+  retries: 3
+  delay: 10
+  when: develop_setting_bun_which.rc != 0
+  changed_when: true
+
+# 非対話シェルでもBunのPATHが参照できるよう ~/.bashrc に追記する
+- name: Add Bun PATH to .bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ develop_setting_target_home }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: bun"
+    block: |
+      export BUN_INSTALL="$HOME/.bun"
+      export PATH="$BUN_INSTALL/bin:$PATH"
+    create: true
+    mode: '0644'
+  become: false
+
+# aidlcコマンドの有無を確認し、インストール要否を判定する
+- name: Check if aidlc is already installed
+  ansible.builtin.shell:
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.bun/bin:{{ develop_setting_target_home }}/.local/bin:$PATH" && command -v aidlc'
+    executable: /bin/bash
+  become: false
+  register: develop_setting_aidlc_which
+  changed_when: false
+  failed_when: false
+
+# インストーラ実行先（全ローカルリポジトリのルート）を作成する
+- name: Ensure AI-DLC working directory exists
+  ansible.builtin.file:
+    path: "{{ develop_setting_aidlc_workdir }}"
+    state: directory
+    mode: '0755'
+  become: false
+  when: develop_setting_aidlc_which.rc != 0
+
+# 未導入時のみ AI-DLC Workflows のネイティブインストーラを実行し、ハーネスを初期化する
+- name: Install AI-DLC Workflows and configure harness
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      export PATH="{{ develop_setting_target_home }}/.bun/bin:{{ develop_setting_target_home }}/.local/bin:$PATH"
+      curl -fsSL {{ develop_setting_aidlc_install_url }} | sh
+      aidlc config --harness {{ develop_setting_aidlc_harness }}
+    chdir: "{{ develop_setting_aidlc_workdir }}"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  register: develop_setting_aidlc_install
+  until: develop_setting_aidlc_install is succeeded
+  retries: 3
+  delay: 10
+  when: develop_setting_aidlc_which.rc != 0
+  changed_when: true
+
+# セットアップ状態を確認する（失敗しても実行は止めず、結果だけ表示する）
+- name: Run aidlc doctor
+  ansible.builtin.shell:
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.bun/bin:{{ develop_setting_target_home }}/.local/bin:$PATH" && aidlc doctor'
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  register: develop_setting_aidlc_doctor
+  changed_when: false
+  failed_when: false
+
+- name: Show aidlc doctor result
+  ansible.builtin.debug:
+    var: develop_setting_aidlc_doctor.stdout_lines
+
+# Stopフックが置かれるディレクトリを作成する
+- name: Ensure Claude Code hooks directory exists
+  ansible.builtin.file:
+    path: "{{ develop_setting_claude_config_dir }}/hooks"
+    state: directory
+    mode: '0755'
+  become: false
+
+# AIDLCのビルド・テストループ用Stopフックを配置する（全プロジェクト共通）
+- name: Deploy loop_verify.sh Stop hook
+  ansible.builtin.template:
+    src: loop_verify.sh.j2
+    dest: "{{ develop_setting_claude_config_dir }}/hooks/loop_verify.sh"
+    mode: '0755'
+  become: false
