@@ -51,6 +51,9 @@
   "sandbox": {
     "enabled": true,
     "allowUnsandboxedCommands": true,
+    "excludedCommands": [
+      "ansible-playbook *"
+    ],
     "filesystem": {
       "denyRead": [
         "~/.aws/credentials",
@@ -158,7 +161,11 @@
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Edit(/.github/workflows/**)",
-      "Bash(chmod 777 *)"
+      "Bash(chmod 777 *)",
+      "Read(~/.ssh/**)",
+      "Bash(ansible-vault *)",
+      "Bash(ansible-playbook * -D*)",
+      "Bash(ansible-playbook * --diff*)"
     ]
   },
   "hooks": {

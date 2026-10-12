@@ -1,0 +1,36 @@
+---
+# ---- ホーム直下の .bashrc / .bash_profile / .gitconfig を一括管理する ----
+# 他のPlaybookが同じファイルをテンプレートで丸ごと上書きすると、ここで持つ内容（pnpm/bun の PATH、
+# gh の credential helper、core.hooksPath）が毎回消えて差分になるため、このロールを唯一の管理元にする。
+# インストーラ（pnpm/bun）が追記する内容は、各テンプレートに含めてある。
+
+# .bashrc を配置する（パーミッションは 0640 固定）
+- name: Deploy .bashrc
+  ansible.builtin.template:
+    src: bashrc.j2
+    dest: "{{ develop_setting_target_home }}/.bashrc"
+    owner: "{{ develop_setting_target_user }}"
+    group: "{{ develop_setting_target_user }}"
+    mode: '0640'
+    backup: true
+  become: false
+
+# .bash_profile を配置する
+- name: Deploy .bash_profile
+  ansible.builtin.template:
+    src: bash_profile.j2
+    dest: "{{ develop_setting_target_home }}/.bash_profile"
+    owner: "{{ develop_setting_target_user }}"
+    group: "{{ develop_setting_target_user }}"
+    backup: true
+  become: false
+
+# .gitconfig を配置する（core.hooksPath と gh の credential helper を含む）
+- name: Deploy .gitconfig
+  ansible.builtin.template:
+    src: gitconfig.j2
+    dest: "{{ develop_setting_target_home }}/.gitconfig"
+    owner: "{{ develop_setting_target_user }}"
+    group: "{{ develop_setting_target_user }}"
+    backup: true
+  become: false

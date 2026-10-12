@@ -89,3 +89,7 @@ develop_setting_aidlc_install_url: "https://github.com/awslabs/aidlc-workflows/r
 # AI-DLC のインストーラを実行するディレクトリ（全ローカルリポジトリのルート）
 develop_setting_aidlc_workdir: "{{ develop_setting_target_home }}/git"
 develop_setting_aidlc_harness: "claude"
+
+# ホーム直下の .gitconfig などに埋め込むユーザー情報（Playbook側の -e user_name / user_email があればそれを優先）
+develop_setting_user_name: "{{ user_name | default('toshi') }}"
+develop_setting_user_email: "{{ user_email | default('toshi@toshi.click') }}"

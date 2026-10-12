@@ -1,0 +1,34 @@
+# Ansible (develop_setting ロール) が管理しています。手で編集しても次回実行で上書きされます。
+[user]
+    name = {{ develop_setting_user_name }}
+    email = {{ develop_setting_user_email }}
+[core]
+    # 改行コードをLF限定にする
+    autocrlf = input
+    # .gitignore_globalを有効化
+    excludesfile = {{ develop_setting_target_home }}/.gitignore_global
+    # パーミッションの変更を無視する
+    filemode = false
+    # ファイル名の大文字・小文字の変更を検知する。
+    ignorecase = false
+    # 日本語ファイル名をエスケープせずに表示
+    quotepath = false
+    # 濁点つきのディレクトリ・ファイルが分けて表示されてしまう UTF8-MAC 問題の解決方法
+    precomposeunicode = true
+    # セキュリティ設定
+    hooksPath = {{ develop_setting_security_hooks_dir }}
+[push]
+    # カレントブランチと同名のリモートブランチが存在する場合のみ、カレントブランチのpushが行われる。
+    default = simple
+[color]
+    # カラー設定
+    ui = true
+    diff = auto
+    status = auto
+    branch = auto
+[pull]
+    rebase = true
+[credential "https://github.com"]
+    helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+    helper = !/usr/bin/gh auth git-credential

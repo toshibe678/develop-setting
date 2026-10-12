@@ -110,7 +110,7 @@
 # pnpmコマンドの有無を確認し、インストール要否を判定する
 - name: Check if pnpm is already installed
   ansible.builtin.shell:
-    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/share/pnpm:{{ develop_setting_target_home }}/.local/bin:$PATH" && command -v pnpm'
+    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/share/pnpm/bin:{{ develop_setting_target_home }}/.local/share/pnpm:{{ develop_setting_target_home }}/.local/bin:$PATH" && command -v pnpm'
     executable: /bin/bash
   become: false
   register: pnpm_which
@@ -199,14 +199,6 @@
     mode: '0755'
   become: false
 
-# GitのhooksPathをグローバル設定し、全リポジトリで同一フックを有効化する
-- name: Set global git core.hooksPath
-  community.general.git_config:
-    name: core.hooksPath
-    value: "{{ develop_setting_security_hooks_dir }}"
-    scope: global
-  become: false
-
 # ---- Claude Code user-level configuration (~/.claude) ----
 # ユーザー単位のClaude設定ディレクトリを作成する
 - name: Ensure Claude Code user config directory exists
@@ -216,21 +208,12 @@
     mode: '0755'
   become: false
 
-# ユーザー共通のCLAUDE.mdをテンプレートから配置する
-- name: Deploy user-level CLAUDE.md
-  ansible.builtin.template:
-    src: claude_CLAUDE.md.j2
-    dest: "{{ develop_setting_claude_config_dir }}/CLAUDE.md"
-    mode: '0644'
-  become: false
-
-# MCP設定を含むsettings.jsonをテンプレートから配置する
-- name: Deploy user-level Claude settings.json (includes MCP settings)
-  ansible.builtin.template:
-    src: claude_settings.json.j2
-    dest: "{{ develop_setting_claude_config_dir }}/settings.json"
-    mode: '0600'
-  become: false
+# ユーザー共通のCLAUDE.mdとsettings.json（MCP設定を含む）を配置する
+- name: Deploy user-level Claude config
+  ansible.builtin.include_tasks: claude_user_config.yml
+  vars:
+    develop_setting_claude_deploy_dir: "{{ develop_setting_claude_config_dir }}"
+    develop_setting_claude_deploy_settings_mode: '0600'
 
 # Claude Codeのプラグイン/スキルを導入する
 - name: Include Claude Code plugins tasks
@@ -239,3 +222,7 @@
 # AI-DLC（Bun / aidlc / loop_verify.sh）を導入する
 - name: Include AI-DLC tasks
   ansible.builtin.include_tasks: aidlc.yml
+
+# ホーム直下の .bashrc / .bash_profile / .gitconfig を配置する（インストーラによる追記より後に実行する）
+- name: Include shell config tasks
+  ansible.builtin.include_tasks: shell_config.yml

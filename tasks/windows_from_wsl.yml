@@ -67,18 +67,9 @@
   changed_when: windows_user_path_result.stdout | trim == 'changed'
   become: false
 
-# Windowsホーム配下へユーザーレベルのCLAUDE.mdを配置する
-- name: Deploy user-level CLAUDE.md to Windows home from WSL
-  ansible.builtin.template:
-    src: claude_CLAUDE.md.j2
-    dest: "{{ develop_setting_windows_claude_config_dir }}/CLAUDE.md"
-    mode: '0644'
-  become: false
-
-# Windowsホーム配下へユーザーレベルのsettings.jsonを配置する
-- name: Deploy user-level Claude settings.json to Windows home from WSL
-  ansible.builtin.template:
-    src: claude_settings.json.j2
-    dest: "{{ develop_setting_windows_claude_config_dir }}/settings.json"
-    mode: '0644'
-  become: false
+# Windowsホーム配下へユーザーレベルのCLAUDE.mdとsettings.jsonを配置する
+- name: Deploy user-level Claude config to Windows home from WSL
+  ansible.builtin.include_tasks: claude_user_config.yml
+  vars:
+    develop_setting_claude_deploy_dir: "{{ develop_setting_windows_claude_config_dir }}"
+    develop_setting_claude_deploy_settings_mode: '0644'

@@ -1,0 +1,33 @@
+---
+# ---- ユーザーレベルの .claude 設定を配置する共通タスク（Ubuntu本体 / WSL経由Windowsで共用） ----
+# 呼び出し側が develop_setting_claude_deploy_dir（配置先）と
+# develop_setting_claude_deploy_settings_mode（settings.jsonのパーミッション）を渡す
+
+# ユーザー共通のCLAUDE.mdをテンプレートから配置する
+- name: Deploy user-level CLAUDE.md
+  ansible.builtin.template:
+    src: claude_CLAUDE.md.j2
+    dest: "{{ develop_setting_claude_deploy_dir }}/CLAUDE.md"
+    mode: '0644'
+  become: false
+
+# 既存のsettings.jsonを読み、意味的な差分があるかを判定できるようにする
+- name: Read current user-level Claude settings.json
+  ansible.builtin.slurp:
+    src: "{{ develop_setting_claude_deploy_dir }}/settings.json"
+  become: false
+  register: develop_setting_current_settings
+  failed_when: false
+
+# Claude Code自身が設定を書き換えてキー順や整形が変わるだけで差分が出ないよう、
+# JSONとして解釈した内容が違うときだけ配置し直す
+- name: Deploy user-level Claude settings.json (includes MCP settings)
+  ansible.builtin.template:
+    src: claude_settings.json.j2
+    dest: "{{ develop_setting_claude_deploy_dir }}/settings.json"
+    mode: "{{ develop_setting_claude_deploy_settings_mode }}"
+  become: false
+  when: >-
+    develop_setting_current_settings.content is not defined or
+    (develop_setting_current_settings.content | b64decode | from_json) !=
+    (lookup('ansible.builtin.template', 'claude_settings.json.j2') | from_json)

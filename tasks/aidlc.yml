@@ -32,18 +32,6 @@
   when: develop_setting_bun_which.rc != 0
   changed_when: true
 
-# 非対話シェルでもBunのPATHが参照できるよう ~/.bashrc に追記する
-- name: Add Bun PATH to .bashrc
-  ansible.builtin.blockinfile:
-    path: "{{ develop_setting_target_home }}/.bashrc"
-    marker: "# {mark} ANSIBLE MANAGED BLOCK: bun"
-    block: |
-      export BUN_INSTALL="$HOME/.bun"
-      export PATH="$BUN_INSTALL/bin:$PATH"
-    create: true
-    mode: '0644'
-  become: false
-
 # aidlcコマンドの有無を確認し、インストール要否を判定する
 - name: Check if aidlc is already installed
   ansible.builtin.shell:
@@ -61,16 +49,11 @@
     state: directory
     mode: '0755'
   become: false
-  when: develop_setting_aidlc_which.rc != 0
 
-# 未導入時のみ AI-DLC Workflows のネイティブインストーラを実行し、ハーネスを初期化する
-- name: Install AI-DLC Workflows and configure harness
+# 未導入時のみ AI-DLC Workflows のネイティブインストーラを実行する
+- name: Install AI-DLC Workflows
   ansible.builtin.shell:
-    cmd: |
-      set -o pipefail
-      export PATH="{{ develop_setting_target_home }}/.bun/bin:{{ develop_setting_target_home }}/.local/bin:$PATH"
-      curl -fsSL {{ develop_setting_aidlc_install_url }} | sh
-      aidlc config --harness {{ develop_setting_aidlc_harness }}
+    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_aidlc_install_url }} | sh"
     chdir: "{{ develop_setting_aidlc_workdir }}"
     executable: /bin/bash
   environment:
@@ -83,10 +66,41 @@
   when: develop_setting_aidlc_which.rc != 0
   changed_when: true
 
+# ハーネスが初期化済みかを確認する（未初期化なら非0で終わる）
+- name: Check if AI-DLC harness is configured
+  ansible.builtin.shell:
+    cmd: >-
+      export PATH="{{ develop_setting_target_home }}/.bun/bin:{{ develop_setting_target_home }}/.local/bin:$PATH" &&
+      aidlc config runtime --show --project-dir "{{ develop_setting_aidlc_workdir }}"
+    chdir: "{{ develop_setting_aidlc_workdir }}"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  register: develop_setting_aidlc_harness_check
+  changed_when: false
+  failed_when: false
+
+# 未初期化時のみハーネスとして Claude Code を指定する（対話できないため --project-dir と --yes が必要）
+- name: Configure AI-DLC harness
+  ansible.builtin.shell:
+    cmd: >-
+      export PATH="{{ develop_setting_target_home }}/.bun/bin:{{ develop_setting_target_home }}/.local/bin:$PATH" &&
+      aidlc config --harness {{ develop_setting_aidlc_harness }}
+      --project-dir "{{ develop_setting_aidlc_workdir }}" --yes
+    chdir: "{{ develop_setting_aidlc_workdir }}"
+    executable: /bin/bash
+  environment:
+    HOME: "{{ develop_setting_target_home }}"
+  become: false
+  when: develop_setting_aidlc_harness_check.rc != 0
+  changed_when: true
+
 # セットアップ状態を確認する（失敗しても実行は止めず、結果だけ表示する）
 - name: Run aidlc doctor
   ansible.builtin.shell:
     cmd: 'export PATH="{{ develop_setting_target_home }}/.bun/bin:{{ develop_setting_target_home }}/.local/bin:$PATH" && aidlc doctor'
+    chdir: "{{ develop_setting_aidlc_workdir }}"
     executable: /bin/bash
   environment:
     HOME: "{{ develop_setting_target_home }}"
