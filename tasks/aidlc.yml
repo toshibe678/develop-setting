@@ -16,21 +16,16 @@
   register: develop_setting_bun_which
   changed_when: false
   failed_when: false
+  check_mode: false
 
-# 未導入時のみ公式インストーラでBun（AIDLCコアエンジンの実行環境）を導入する
-- name: Install Bun via official install script
-  ansible.builtin.shell:
-    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_bun_install_url }} | bash"
-    executable: /bin/bash
-  environment:
-    HOME: "{{ develop_setting_target_home }}"
-  become: false
-  register: develop_setting_bun_install
-  until: develop_setting_bun_install is succeeded
-  retries: 3
-  delay: 10
+# 未導入時のみ公式インストーラでBun（AIDLCコアエンジンの実行環境）を導入する（取得は get_url、再試行つき）
+- name: Install Bun via the shared installer task
+  ansible.builtin.include_tasks: install_script.yml
+  vars:
+    develop_setting_installer_name: bun
+    develop_setting_installer_url: "{{ develop_setting_bun_install_url }}"
+    develop_setting_installer_shell: bash
   when: develop_setting_bun_which.rc != 0
-  changed_when: true
 
 # aidlcコマンドの有無を確認し、インストール要否を判定する
 - name: Check if aidlc is already installed
@@ -41,6 +36,7 @@
   register: develop_setting_aidlc_which
   changed_when: false
   failed_when: false
+  check_mode: false
 
 # インストーラ実行先（全ローカルリポジトリのルート）を作成する
 - name: Ensure AI-DLC working directory exists
@@ -50,21 +46,15 @@
     mode: '0755'
   become: false
 
-# 未導入時のみ AI-DLC Workflows のネイティブインストーラを実行する
-- name: Install AI-DLC Workflows
-  ansible.builtin.shell:
-    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_aidlc_install_url }} | sh"
-    chdir: "{{ develop_setting_aidlc_workdir }}"
-    executable: /bin/bash
-  environment:
-    HOME: "{{ develop_setting_target_home }}"
-  become: false
-  register: develop_setting_aidlc_install
-  until: develop_setting_aidlc_install is succeeded
-  retries: 3
-  delay: 10
+# 未導入時のみ AI-DLC Workflows のネイティブインストーラを実行する（取得は get_url、再試行つき）
+- name: Install AI-DLC Workflows via the shared installer task
+  ansible.builtin.include_tasks: install_script.yml
+  vars:
+    develop_setting_installer_name: aidlc
+    develop_setting_installer_url: "{{ develop_setting_aidlc_install_url }}"
+    develop_setting_installer_shell: sh
+    develop_setting_installer_chdir: "{{ develop_setting_aidlc_workdir }}"
   when: develop_setting_aidlc_which.rc != 0
-  changed_when: true
 
 # ハーネスが初期化済みかを確認する（未初期化なら非0で終わる）
 - name: Check if AI-DLC harness is configured
@@ -80,6 +70,7 @@
   register: develop_setting_aidlc_harness_check
   changed_when: false
   failed_when: false
+  check_mode: false
 
 # 未初期化時のみハーネスとして Claude Code を指定する（対話できないため --project-dir と --yes が必要）
 - name: Configure AI-DLC harness
@@ -108,6 +99,7 @@
   register: develop_setting_aidlc_doctor
   changed_when: false
   failed_when: false
+  check_mode: false
 
 - name: Show aidlc doctor result
   ansible.builtin.debug:

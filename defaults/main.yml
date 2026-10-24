@@ -93,3 +93,108 @@ develop_setting_aidlc_harness: "claude"
 # ホーム直下の .gitconfig などに埋め込むユーザー情報（Playbook側の -e user_name / user_email があればそれを優先）
 develop_setting_user_name: "{{ user_name | default('toshi') }}"
 develop_setting_user_email: "{{ user_email | default('toshi@toshi.click') }}"
+
+# ---- プロファイルと項目グループの on/off ----
+# workstation: 開発機（WSL）。すべてのグループを有効にする
+# server: サーバー。言語・CLI・シェル設定・pre-commit だけを有効にし、AI設定・クラウド認証設定・個人リポジトリのcloneは無効にする
+develop_setting_profile: workstation
+develop_setting_profile_defaults:
+  workstation:
+    languages: true
+    cli_packages: true
+    home_files: true
+    precommit: true
+    ai: true
+    cloud_credentials: true
+    repo_clones: true
+  server:
+    languages: true
+    cli_packages: true
+    home_files: true
+    precommit: true
+    ai: false
+    cloud_credentials: false
+    repo_clones: false
+# グループ名の一覧（validate.yml が各 develop_setting_<グループ>_enabled を検証する）
+develop_setting_groups:
+  - languages
+  - cli_packages
+  - home_files
+  - precommit
+  - ai
+  - cloud_credentials
+  - repo_clones
+# グループごとの有効・無効。Playbook側で個別に上書きできる（真偽値のみ）
+develop_setting_languages_enabled: "{{ develop_setting_profile_defaults[develop_setting_profile]['languages'] }}"
+develop_setting_cli_packages_enabled: "{{ develop_setting_profile_defaults[develop_setting_profile]['cli_packages'] }}"
+develop_setting_home_files_enabled: "{{ develop_setting_profile_defaults[develop_setting_profile]['home_files'] }}"
+develop_setting_precommit_enabled: "{{ develop_setting_profile_defaults[develop_setting_profile]['precommit'] }}"
+develop_setting_ai_enabled: "{{ develop_setting_profile_defaults[develop_setting_profile]['ai'] }}"
+develop_setting_cloud_credentials_enabled: "{{ develop_setting_profile_defaults[develop_setting_profile]['cloud_credentials'] }}"
+develop_setting_repo_clones_enabled: "{{ develop_setting_profile_defaults[develop_setting_profile]['repo_clones'] }}"
+
+# SSHログインユーザーがこの値と一致しなければ失敗する（空のときは検査しない）。
+# 他のユーザーのホームを変更しないための安全装置。infra は manage_user_name を渡す
+develop_setting_expected_user: ""
+
+# ---- 開発言語とツール（Ubuntu標準のaptパッケージ。外部のリポジトリと署名鍵は追加しない） ----
+develop_setting_language_packages:
+  - golang-go
+  - nodejs
+  - npm
+  - gh
+develop_setting_npm_registry: "https://npm.flatt.tech"
+develop_setting_go_task_npm_package: "@go-task/cli"
+
+# ---- 共通CLIとpip ----
+develop_setting_cli_packages:
+  - ansible
+  - bash-completion
+  - bmon
+  - curl
+  - git
+  - htop
+  - iftop
+  - iotop
+  - iproute2
+  - iputils-ping
+  - iptraf
+  - iptraf-ng
+  - net-tools
+  - nmap
+  - sudo
+  - sysstat
+  - telnet
+  - tree
+  - unzip
+  - vim
+  - wget
+  - zip
+  - python3-pip
+develop_setting_pip_index_url: "https://pypi.flatt.tech/simple/"
+
+# ---- git の safe.directory（.gitconfig に出力する。git.yml の追記は使わない） ----
+develop_setting_git_safe_directories: []
+
+# ---- 外部インストーラの取得（tasks/install_script.yml） ----
+develop_setting_installer_retries: 3
+develop_setting_installer_delay: 10
+# 一時ファイルの置き場所（未指定ならOSの既定の一時ディレクトリ）
+develop_setting_installer_tmpdir: ""
+
+# ---- クラウド認証設定（workstation のみ。Vault暗号化ファイルの絶対パスを Playbook側から渡す） ----
+develop_setting_aws_config_src: ""
+develop_setting_ssh_private_key_src: ""
+develop_setting_ssh_config_enabled: true
+
+# ---- 個人リポジトリのclone（workstation のみ） ----
+develop_setting_clone_root: "{{ develop_setting_target_home }}/git"
+# clone に使う SSH 秘密鍵（空にすると指定しない）
+develop_setting_git_ssh_key_file: "{{ develop_setting_target_home }}/.ssh/id_ed25519"
+develop_setting_git_clones:
+  - { name: scripts, repo: "git@github.com:toshibe678/scripts.git" }
+  - { name: infra, repo: "git@github.com:toshibe678/infra.git" }
+  - { name: blog.toshi.click, repo: "git@github.com:toshibe678/blog.toshi.click.git" }
+  - { name: CurriculumVitae, repo: "git@github.com:toshibe678/CurriculumVitae.git" }
+  - { name: ansible_for_wsl, repo: "git@github.com:toshibe678/ansible_for_wsl.git" }
+  - { name: develop, repo: "git@github.com:toshibe678/develop.git" }

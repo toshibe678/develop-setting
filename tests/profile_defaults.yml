@@ -1,0 +1,68 @@
+---
+# プロファイルごとの既定の on/off を検証するテスト
+# ローカル実行: ansible-playbook -i localhost, -c local tests/profile_defaults.yml
+- name: Profile defaults resolve to the documented values
+  hosts: localhost
+  gather_facts: false
+  vars:
+    develop_setting_role_path: "{{ playbook_dir }}/.."
+  tasks:
+    - name: Load role defaults for the workstation profile
+      ansible.builtin.include_role:
+        name: "{{ develop_setting_role_path }}"
+        tasks_from: validate
+        public: true
+      vars:
+        develop_setting_profile: workstation
+
+    - name: Workstation enables every group
+      ansible.builtin.assert:
+        that:
+          - develop_setting_languages_enabled | bool
+          - develop_setting_cli_packages_enabled | bool
+          - develop_setting_home_files_enabled | bool
+          - develop_setting_precommit_enabled | bool
+          - develop_setting_ai_enabled | bool
+          - develop_setting_cloud_credentials_enabled | bool
+          - develop_setting_repo_clones_enabled | bool
+        quiet: true
+
+    # server は言語・CLI・シェル・pre-commit だけを有効にする
+    - name: Server profile defaults
+      ansible.builtin.assert:
+        that:
+          - develop_setting_profile_defaults['server']['languages']
+          - develop_setting_profile_defaults['server']['cli_packages']
+          - develop_setting_profile_defaults['server']['home_files']
+          - develop_setting_profile_defaults['server']['precommit']
+          - not develop_setting_profile_defaults['server']['ai']
+          - not develop_setting_profile_defaults['server']['cloud_credentials']
+          - not develop_setting_profile_defaults['server']['repo_clones']
+        quiet: true
+
+    # 上書きは既定より優先される（server でも ai を有効にできる）
+    - name: Individual override wins over the profile default
+      ansible.builtin.assert:
+        that:
+          - override_ai | bool
+        quiet: true
+      vars:
+        develop_setting_profile: server
+        develop_setting_ai_enabled: true
+        override_ai: "{{ develop_setting_ai_enabled }}"
+
+    # server プロファイルから解決した値を、実際の変数から読む
+    - name: Server profile resolves ai to false through the variable
+      ansible.builtin.assert:
+        that:
+          - not (resolved_ai | bool)
+          - not (resolved_cloud | bool)
+          - not (resolved_clones | bool)
+          - resolved_languages | bool
+        quiet: true
+      vars:
+        develop_setting_profile: server
+        resolved_ai: "{{ develop_setting_ai_enabled }}"
+        resolved_cloud: "{{ develop_setting_cloud_credentials_enabled }}"
+        resolved_clones: "{{ develop_setting_repo_clones_enabled }}"
+        resolved_languages: "{{ develop_setting_languages_enabled }}"

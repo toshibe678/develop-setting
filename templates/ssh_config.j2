@@ -1,0 +1,16 @@
+Host *
+  ForwardAgent yes
+  ServerAliveInterval 30
+  ServerAliveCountMax 5
+  GSSAPIAuthentication no
+  ControlMaster auto
+  ControlPath ~/.ssh/mux-%r@%h:%p
+  ControlPersist 4h
+  IdentityFile ~/.ssh/id_ed25519
+
+Host github.com
+  HostName github.com
+  AddKeysToAgent yes
+  User git
+  IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes

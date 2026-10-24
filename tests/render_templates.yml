@@ -1,0 +1,151 @@
+---
+# テンプレートの描画テスト（server と workstation の両方）
+# ローカル実行: ansible-playbook -i localhost, -c local tests/render_templates.yml
+- name: Rendered shell and git templates match the profile
+  hosts: localhost
+  gather_facts: false
+  vars:
+    develop_setting_role_path: "{{ playbook_dir }}/.."
+    out_dir: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/develop-setting-render-test"
+    # 描画に要る変数のダミー値（実際の秘密値は使わない）
+    bedrock_access_key_id: DUMMY_ACCESS_KEY_ID
+    bedrock_secret_access_key: DUMMY_SECRET_ACCESS_KEY
+    develop_setting_target_home: "{{ out_dir }}/home"
+    develop_setting_security_hooks_dir: "{{ out_dir }}/home/.git/hooks"
+    develop_setting_git_safe_directories:
+      - /home/toshi/scripts
+      - /home/toshi/infra
+  tasks:
+    # role の既定値を読み込む（play の vars が優先される）
+    - name: Load role defaults
+      ansible.builtin.include_role:
+        name: "{{ develop_setting_role_path }}"
+        tasks_from: validate
+        public: true
+
+    - name: Prepare a clean output directory
+      block:
+        - name: Remove the output directory if it exists
+          ansible.builtin.file:
+            path: "{{ out_dir }}"
+            state: absent
+        - name: Create the output directory
+          ansible.builtin.file:
+            path: "{{ out_dir }}"
+            state: directory
+            mode: '0755'
+
+    # ---- server プロファイル: AWS のキーと BROWSER を含まない ----
+    - name: Render templates for the server profile
+      ansible.builtin.template:
+        src: "{{ develop_setting_role_path }}/templates/{{ item.src }}"
+        dest: "{{ out_dir }}/server-{{ item.dest }}"
+        mode: '0600'
+      loop:
+        - { src: bashrc.j2, dest: bashrc }
+        - { src: bash_profile.j2, dest: bash_profile }
+        - { src: gitconfig.j2, dest: gitconfig }
+        - { src: profile.j2, dest: profile }
+        - { src: bash_aliases.j2, dest: bash_aliases }
+        - { src: pip.conf.j2, dest: pip.conf }
+      vars:
+        develop_setting_profile: server
+        develop_setting_windows_from_wsl_enabled: false
+
+    # ---- workstation プロファイル: AWS のキーと BROWSER を含む ----
+    - name: Render templates for the workstation profile
+      ansible.builtin.template:
+        src: "{{ develop_setting_role_path }}/templates/{{ item.src }}"
+        dest: "{{ out_dir }}/ws-{{ item.dest }}"
+        mode: '0600'
+      loop:
+        - { src: bashrc.j2, dest: bashrc }
+        - { src: bash_profile.j2, dest: bash_profile }
+      vars:
+        develop_setting_profile: workstation
+        develop_setting_windows_from_wsl_enabled: true
+
+    - name: Read rendered files
+      ansible.builtin.slurp:
+        src: "{{ out_dir }}/{{ item }}"
+      loop:
+        - server-bashrc
+        - server-bash_profile
+        - server-gitconfig
+        - server-profile
+        - server-pip.conf
+        - ws-bashrc
+        - ws-bash_profile
+      register: rendered
+
+    - name: Index rendered contents by name
+      ansible.builtin.set_fact:
+        r: "{{ r | default({}) | combine({item.item: (item.content | b64decode)}) }}"
+      loop: "{{ rendered.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Server output has no cloud credentials or Windows browser setting
+      ansible.builtin.assert:
+        that:
+          - "'AWS_ACCESS_KEY_ID' not in r['server-bash_profile']"
+          - "'DUMMY_ACCESS_KEY_ID' not in r['server-bash_profile']"
+          - "'BROWSER=' not in r['server-bash_profile']"
+          - "'claude update' not in r['server-bashrc']"
+        fail_msg: "server の出力に認証情報、Windows 用の BROWSER、claude update が含まれている"
+        quiet: true
+
+    - name: Workstation output has credentials, the Windows browser setting and claude update
+      ansible.builtin.assert:
+        that:
+          - "'AWS_ACCESS_KEY_ID' in r['ws-bash_profile']"
+          - "'BROWSER=' in r['ws-bash_profile']"
+          - "'claude update' in r['ws-bashrc']"
+        fail_msg: "workstation の出力に認証情報、BROWSER、claude update が含まれていない"
+        quiet: true
+
+    - name: Shared content is present in both profiles
+      ansible.builtin.assert:
+        that:
+          - "'alias ll=' in r['server-bashrc']"
+          - "'alias rm=' in r['server-bashrc']"
+          - "'PIP_INDEX_URL=https://pypi.flatt.tech/simple/' in r['server-bashrc']"
+          - "'UV_INDEX_URL=https://pypi.flatt.tech/simple/' in r['server-bashrc']"
+          - "'alias ll=' in r['ws-bashrc']"
+          - "'. \"$HOME/.bashrc\"' in r['server-profile']"
+          - "'$HOME/.local/bin' in r['server-profile']"
+          - "'index-url = https://pypi.flatt.tech/simple/' in r['server-pip.conf']"
+        quiet: true
+
+    - name: safe.directory entries are rendered into .gitconfig
+      ansible.builtin.assert:
+        that:
+          - "'[safe]' in r['server-gitconfig']"
+          - "'directory = /home/toshi/scripts' in r['server-gitconfig']"
+          - "'directory = /home/toshi/infra' in r['server-gitconfig']"
+        quiet: true
+
+    # 境界: safe.directory が空なら [safe] セクションを出さない
+    - name: Empty safe.directory list renders no [safe] section
+      block:
+        - name: Render .gitconfig with an empty safe.directory list
+          ansible.builtin.template:
+            src: "{{ develop_setting_role_path }}/templates/gitconfig.j2"
+            dest: "{{ out_dir }}/empty-gitconfig"
+            mode: '0600'
+          vars:
+            develop_setting_git_safe_directories: []
+        - name: Read the rendered .gitconfig
+          ansible.builtin.slurp:
+            src: "{{ out_dir }}/empty-gitconfig"
+          register: empty_gitconfig
+        - name: No [safe] section is rendered
+          ansible.builtin.assert:
+            that:
+              - "'[safe]' not in (empty_gitconfig.content | b64decode)"
+            quiet: true
+
+    - name: Clean up the output directory
+      ansible.builtin.file:
+        path: "{{ out_dir }}"
+        state: absent

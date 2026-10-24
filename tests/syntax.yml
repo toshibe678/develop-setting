@@ -1,0 +1,12 @@
+---
+# role を呼ぶ検査用プレイ。構文検査と ansible-lint の対象にする。
+# 構文検査: ansible-playbook -i localhost, --syntax-check tests/syntax.yml
+# 実行（実機に適用するときの例。通常のテストでは実行しない）:
+#   ansible-playbook -i localhost, -c local -K tests/syntax.yml -e develop_setting_profile=server
+- name: Call the develop_setting role (syntax check target)
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Apply the develop_setting role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."

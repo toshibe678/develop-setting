@@ -15,6 +15,7 @@
   become: false
   register: develop_setting_login_user_result
   changed_when: false
+  check_mode: false
 
 # 接続ユーザーのホームディレクトリを /etc/passwd から取得する
 - name: Get home directory of the SSH login user
@@ -29,20 +30,9 @@
     develop_setting_target_user: "{{ develop_setting_login_user_result.stdout | trim }}"
     develop_setting_target_home: "{{ getent_passwd[develop_setting_login_user_result.stdout | trim][4] }}"
 
-# Claude Code実行に必要なサンドボックス関連パッケージを導入する
-- name: Install Claude Code sandbox packages
-  ansible.builtin.apt:
-    name: "{{ develop_setting_claude_sandbox_packages }}"
-    state: present
-    update_cache: true
-  become: true
-
-# Claude Codeのフックが使うパッケージを導入する
-- name: Install Claude Code hook packages
-  ansible.builtin.apt:
-    name: "{{ develop_setting_claude_hook_packages }}"
-    state: present
-  become: true
+# 期待するユーザーが指定されているときは、SSHログインユーザーと一致しなければ、何も変更せずに失敗する
+- name: Assert the SSH login user is the expected user
+  ansible.builtin.include_tasks: assert_expected_user.yml
 
 # 必要なgitを導入する
 - name: Install git package
@@ -51,178 +41,43 @@
     state: present
   become: true
 
-# Claudeコマンドの存在を確認し、既存インストール有無を判定する
-- name: Check if Claude Code is already installed
-  ansible.builtin.command:
-    cmd: which claude
-  become: false
-  register: claude_which
-  changed_when: false
-  failed_when: false
+# ---- 項目グループ（プロファイルまたは個別変数で on/off） ----
+# 開発言語とツール（golang・nodejs・npm・gh・go-task・uv・pnpm）
+- name: Include language and tool tasks
+  ansible.builtin.include_tasks: languages.yml
+  when: develop_setting_languages_enabled | bool
 
-# 未導入時のみ公式インストーラでClaude Codeをインストールする
-- name: Install Claude Code via official install script
-  ansible.builtin.shell:
-    cmd: "curl -fsSL {{ develop_setting_claude_install_url }} | bash"
-    executable: /bin/bash
-  environment:
-    HOME: "{{ develop_setting_target_home }}"
-  become: false
-  when: claude_which.rc != 0
-  changed_when: true
+# 共通CLIとpip
+- name: Include common CLI package tasks
+  ansible.builtin.include_tasks: cli_packages.yml
+  when: develop_setting_cli_packages_enabled | bool
 
-# Claude Codeを日次で更新するcronジョブをユーザー領域に設定する
-- name: Set up daily Claude Code update cron job
-  ansible.builtin.cron:
-    name: "Update Claude Code"
-    minute: "{{ develop_setting_claude_update_cron_minute }}"
-    hour: "{{ develop_setting_claude_update_cron_hour }}"
-    job: "curl -fsSL {{ develop_setting_claude_install_url }} | bash >> {{ develop_setting_target_home }}/claude-update.log 2>&1"
-    user: "{{ develop_setting_target_user }}"
-    state: present
-  become: false
+# pre-commit（semgrep + gitleaks）
+- name: Include pre-commit tasks
+  ansible.builtin.include_tasks: precommit.yml
+  when: develop_setting_precommit_enabled | bool
 
-# uvコマンドの有無を確認し、インストール要否を判定する
-- name: Check if uv is already installed
-  ansible.builtin.shell:
-    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/bin:$PATH" && command -v uv'
-    executable: /bin/bash
-  become: false
-  register: uv_which
-  changed_when: false
-  failed_when: false
+# AI設定（Claude Code・プラグイン・AI-DLC）
+- name: Include AI tasks
+  ansible.builtin.include_tasks: ai.yml
+  when: develop_setting_ai_enabled | bool
 
-# 未導入時のみ公式インストーラでuvを導入する（リトライ付き）
-- name: Install uv via official install script
-  ansible.builtin.shell:
-    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_uv_install_url }} | sh"
-    executable: /bin/bash
-  environment:
-    HOME: "{{ develop_setting_target_home }}"
-  become: false
-  register: uv_install
-  until: uv_install is succeeded
-  retries: 3
-  delay: 10
-  when: uv_which.rc != 0
-  changed_when: true
+# クラウド認証設定（.aws/config・SSH鍵・.ssh/config）
+- name: Include cloud credential tasks
+  ansible.builtin.include_tasks: cloud_credentials.yml
+  when: develop_setting_cloud_credentials_enabled | bool
 
-# pnpmコマンドの有無を確認し、インストール要否を判定する
-- name: Check if pnpm is already installed
-  ansible.builtin.shell:
-    cmd: 'export PATH="{{ develop_setting_target_home }}/.local/share/pnpm/bin:{{ develop_setting_target_home }}/.local/share/pnpm:{{ develop_setting_target_home }}/.local/bin:$PATH" && command -v pnpm'
-    executable: /bin/bash
-  become: false
-  register: pnpm_which
-  changed_when: false
-  failed_when: false
+# 個人リポジトリの clone
+- name: Include repository clone tasks
+  ansible.builtin.include_tasks: repo_clones.yml
+  when: develop_setting_repo_clones_enabled | bool
 
-# 未導入時のみ公式インストーラでpnpmを導入する（リトライ付き）
-- name: Install pnpm via official install script
-  ansible.builtin.shell:
-    cmd: "set -o pipefail && curl -fsSL {{ develop_setting_pnpm_install_url }} | sh -"
-    executable: /bin/bash
-  environment:
-    HOME: "{{ develop_setting_target_home }}"
-    SHELL: /bin/bash
-  become: false
-  register: pnpm_install
-  until: pnpm_install is succeeded
-  retries: 3
-  delay: 10
-  when: pnpm_which.rc != 0
-  changed_when: true
+# ホーム直下の .bashrc / .bash_profile / .gitconfig / .profile / .bash_aliases / .gitignore_global を配置する
+# （インストーラによる追記より後に実行する）
+- name: Include home file tasks
+  ansible.builtin.include_tasks: home_files.yml
+  when: develop_setting_home_files_enabled | bool
 
-# ---- Supply chain attack countermeasures: package manager cooldown ----
-# npm/pnpmの新規公開直後パッケージ利用を遅延させる設定を ~/.npmrc に適用する
-- name: Configure .npmrc minimum-release-age for pnpm/npm (supply chain protection)
-  ansible.builtin.lineinfile:
-    path: "{{ develop_setting_target_home }}/.npmrc"
-    regexp: '^minimum-release-age='
-    line: "minimum-release-age={{ develop_setting_npm_minimum_release_age }}"
-    create: true
-    mode: '0600'
-  become: false
-
-# uv設定ディレクトリを作成し、続く設定ファイル配置に備える
-- name: Ensure uv config directory exists
-  ansible.builtin.file:
-    path: "{{ develop_setting_target_home }}/.config/uv"
-    state: directory
-    mode: '0755'
-  become: false
-  when: develop_setting_uv_exclude_newer != ""
-
-# uvのexclude-newerを設定し、最新過ぎるパッケージの利用を抑制する
-- name: Configure uv exclude-newer (supply chain protection)
-  ansible.builtin.lineinfile:
-    path: "{{ develop_setting_target_home }}/.config/uv/uv.toml"
-    regexp: '^exclude-newer\s*='
-    line: 'exclude-newer = "{{ develop_setting_uv_exclude_newer }}"'
-    create: true
-    mode: '0644'
-  become: false
-  when: develop_setting_uv_exclude_newer != ""
-
-# ---- Security scanning: semgrep + gitleaks via pre-commit ----
-# pre-commit本体をaptで導入し、PEP 668環境でも失敗しないようにする
-- name: Install pre-commit package
-  ansible.builtin.apt:
-    name: pre-commit
-    state: present
-    update_cache: true
-  become: true
-
-# グローバルGitフック用ディレクトリを作成する
-- name: Ensure global git-hooks directory exists
-  ansible.builtin.file:
-    path: "{{ develop_setting_security_hooks_dir }}"
-    state: directory
-    mode: '0755'
-  become: false
-
-# semgrep/gitleaksを実行するpre-commit設定ファイルを配備する
-- name: Deploy global pre-commit config (semgrep + gitleaks)
-  ansible.builtin.template:
-    src: pre-commit-config.yaml.j2
-    dest: "{{ develop_setting_security_precommit_config }}"
-    mode: '0644'
-  become: false
-
-# グローバルpre-commitフックスクリプトを配置する
-- name: Deploy global pre-commit hook script
-  ansible.builtin.copy:
-    dest: "{{ develop_setting_security_hooks_dir }}/pre-commit"
-    content: |
-      #!/bin/sh
-      exec pre-commit run --config "{{ develop_setting_security_precommit_config }}"
-    mode: '0755'
-  become: false
-
-# ---- Claude Code user-level configuration (~/.claude) ----
-# ユーザー単位のClaude設定ディレクトリを作成する
-- name: Ensure Claude Code user config directory exists
-  ansible.builtin.file:
-    path: "{{ develop_setting_claude_config_dir }}"
-    state: directory
-    mode: '0755'
-  become: false
-
-# ユーザー共通のCLAUDE.mdとsettings.json（MCP設定を含む）を配置する
-- name: Deploy user-level Claude config
-  ansible.builtin.include_tasks: claude_user_config.yml
-  vars:
-    develop_setting_claude_deploy_dir: "{{ develop_setting_claude_config_dir }}"
-    develop_setting_claude_deploy_settings_mode: '0600'
-
-# Claude Codeのプラグイン/スキルを導入する
-- name: Include Claude Code plugins tasks
-  ansible.builtin.include_tasks: claude_plugins.yml
-
-# AI-DLC（Bun / aidlc / loop_verify.sh）を導入する
-- name: Include AI-DLC tasks
-  ansible.builtin.include_tasks: aidlc.yml
-
-# ホーム直下の .bashrc / .bash_profile / .gitconfig を配置する（インストーラによる追記より後に実行する）
 - name: Include shell config tasks
   ansible.builtin.include_tasks: shell_config.yml
+  when: develop_setting_home_files_enabled | bool

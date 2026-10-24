@@ -1,0 +1,93 @@
+---
+# tasks/repo_clones.yml のテスト。ローカルの git リポジトリを使い、ネットワークは使わない。
+# ローカル実行: ansible-playbook -i localhost, -c local tests/repo_clones.yml
+- name: repo_clones.yml clones new repositories and skips dirty ones
+  hosts: localhost
+  gather_facts: false
+  vars:
+    develop_setting_role_path: "{{ playbook_dir }}/.."
+    test_dir: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/develop-setting-clone-test"
+    develop_setting_target_home: "{{ test_dir }}/home"
+    develop_setting_clone_root: "{{ test_dir }}/home/git"
+    develop_setting_git_ssh_key_file: ""
+    develop_setting_git_clones:
+      - { name: clean-repo, repo: "{{ test_dir }}/origin-clean.git" }
+      - { name: dirty-repo, repo: "{{ test_dir }}/origin-dirty.git" }
+  tasks:
+    - name: Prepare a clean test directory
+      ansible.builtin.file:
+        path: "{{ test_dir }}"
+        state: absent
+
+    - name: Create the origin repositories with one commit each
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          mkdir -p "{{ test_dir }}/home"
+          for n in clean dirty; do
+            git init -q --bare "{{ test_dir }}/origin-$n.git"
+            git clone -q "{{ test_dir }}/origin-$n.git" "{{ test_dir }}/seed-$n" 2>/dev/null
+            echo v1 > "{{ test_dir }}/seed-$n/file.txt"
+            git -C "{{ test_dir }}/seed-$n" add file.txt
+            git -C "{{ test_dir }}/seed-$n" -c user.name=t -c user.email=t@example.com commit -q -m v1
+            git -C "{{ test_dir }}/seed-$n" push -q origin HEAD
+          done
+        executable: /bin/bash
+      changed_when: true
+
+    # 正常系: 初回はどちらも clone される
+    - name: First run clones both repositories
+      ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/repo_clones.yml"
+
+    - name: Both clones exist
+      ansible.builtin.stat:
+        path: "{{ item }}/file.txt"
+      loop:
+        - "{{ develop_setting_clone_root }}/clean-repo"
+        - "{{ develop_setting_clone_root }}/dirty-repo"
+      register: first_clone
+
+    - name: Both repositories were cloned
+      ansible.builtin.assert:
+        that: first_clone.results | map(attribute='stat.exists') | list == [true, true]
+        quiet: true
+
+    # 準備: dirty-repo に未コミットの変更を作り、origin に新しいコミットを足す
+    - name: Make dirty-repo dirty and push a new commit to both origins
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          echo local-change >> "{{ develop_setting_clone_root }}/dirty-repo/file.txt"
+          for n in clean dirty; do
+            echo v2 > "{{ test_dir }}/seed-$n/file.txt"
+            git -C "{{ test_dir }}/seed-$n" -c user.name=t -c user.email=t@example.com commit -q -am v2
+            git -C "{{ test_dir }}/seed-$n" push -q origin HEAD
+          done
+        executable: /bin/bash
+      changed_when: true
+
+    # 境界: 2回目は clean-repo だけ更新され、dirty-repo は更新されず変更も残る
+    - name: Second run updates clean repo and skips dirty repo
+      ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/repo_clones.yml"
+
+    - name: Read both working files
+      ansible.builtin.slurp:
+        src: "{{ item }}/file.txt"
+      loop:
+        - "{{ develop_setting_clone_root }}/clean-repo"
+        - "{{ develop_setting_clone_root }}/dirty-repo"
+      register: second_clone
+
+    - name: Clean repo is updated, dirty repo keeps its local change and is not updated
+      ansible.builtin.assert:
+        that:
+          - (second_clone.results[0].content | b64decode) is match('v2')
+          - "'local-change' in (second_clone.results[1].content | b64decode)"
+          - "'v2' not in (second_clone.results[1].content | b64decode)"
+        fail_msg: "clean={{ second_clone.results[0].content | b64decode }} dirty={{ second_clone.results[1].content | b64decode }}"
+        quiet: true
+
+    - name: Clean up the test directory
+      ansible.builtin.file:
+        path: "{{ test_dir }}"
+        state: absent

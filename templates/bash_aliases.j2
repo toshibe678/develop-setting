@@ -1,0 +1,21 @@
+alias ls='ls --color=auto'
+alias l='ls -CF'
+# 隠しファイルも表示
+alias la='ls -A'
+# 詳細表示
+alias ll='ls -alF'
+# 隠しファイル含めて詳細表示
+alias lla='ls -al'
+# ファイルサイズ表示をわかりやすく
+alias df='df -h'
+# ディレクトリ単位のdiff。ファイルの有無も比較
+alias diffdir='diff -crN'
+# カレントディレクトリにパッチを当てる
+alias patchcur='patch -p0'
+# ディレクトリを指定してパッチを当てる
+alias patchfor='patch -p0 -d'
+
+# Git aliases for convenience
+alias gitadd='git add -v'
+alias gitstaged='git diff --staged'
+alias gitpullall='for BRANCH in live stage develop; do git checkout $BRANCH && git pull; done'

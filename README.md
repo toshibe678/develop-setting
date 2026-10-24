@@ -79,6 +79,57 @@ ansible-galaxy collection install -r requirements.yml
 `gather_facts` が become 配下で走ると `ansible_env.HOME` が `/root` を指すため、
 これらの値ではなく上記の検出結果を使用しています。
 
+## プロファイルと項目グループ（開発機とサーバーで切り替える）
+
+`develop_setting_profile` で、開発機（`workstation`）とサーバー（`server`）の既定を切り替えます。
+各グループは `develop_setting_<グループ>_enabled`（真偽値）で個別に上書きできます。真偽値でない値は、処理を始める前に失敗します。
+
+| グループ | 内容 | workstation | server |
+|---|---|---|---|
+| `languages` | golang・nodejs・npm・gh・go-task（aptの標準パッケージ）、uv、pnpm、`~/.npmrc` | 有効 | 有効 |
+| `cli_packages` | 共通CLI、python3-pip、`pip.conf` | 有効 | 有効 |
+| `home_files` | `.bashrc`・`.bash_profile`・`.gitconfig`・`.profile`・`.bash_aliases`・`.gitignore_global` | 有効 | 有効 |
+| `precommit` | pre-commit（gitleaks + semgrep） | 有効 | 有効 |
+| `ai` | Claude Code・プラグイン・AI-DLC（bun を含む） | 有効 | 無効 |
+| `cloud_credentials` | `.aws/config`・SSH鍵・`.ssh/config` | 有効 | 無効 |
+| `repo_clones` | `~/git` 配下への個人リポジトリの clone | 有効 | 無効 |
+
+### 主な変数
+
+| 変数名 | 既定値 | 説明 |
+|---|---|---|
+| `develop_setting_profile` | `workstation` | `workstation` または `server` |
+| `develop_setting_expected_user` | `""` | SSHログインユーザーがこの値と一致しなければ、何も変更せずに失敗する（空なら検査しない）。infra は `manage_user_name` を渡す |
+| `develop_setting_language_packages` | `golang-go` `nodejs` `npm` `gh` | 言語とツールの apt パッケージ。外部のリポジトリ（PPA）と署名鍵は追加しない（版はOSの標準に従う） |
+| `develop_setting_git_safe_directories` | `[]` | `.gitconfig` の `[safe]` に出力する一覧（`git config --add` は使わない） |
+| `develop_setting_aws_config_src` / `develop_setting_ssh_private_key_src` | `""` | Vault 暗号化ファイルの**絶対パス**。`cloud_credentials` が有効なときは必須 |
+| `develop_setting_git_clones` | 6リポジトリ | `repo_clones` が clone する一覧。作業ツリーに変更があるものは更新しない |
+
+### 外部インストーラ（uv・pnpm・bun・Claude Code・AI-DLC）
+
+`curl ... | sh` の形は使いません。`tasks/install_script.yml` が、一時ファイルへ `get_url`（証明書検証あり）で取得し、
+ベンダーがチェックサムを公開している場合は `checksum` で検証してから実行します。取得は3回まで再試行し、
+失敗したら取得先を含むメッセージで止めます。一時ファイルは成否にかかわらず削除します。
+なお、Claude Code の日次更新の cron ジョブ（`ai` グループ）は `curl | bash` のままです（server では無効）。
+
+### 動作環境とテスト
+
+- ansible-core 2.16 以上、Ubuntu 24.04 / 26.04。collection は `community.general` と `ansible.posix` を使います。
+- 検査: `ansible-playbook -i localhost, --syntax-check tests/syntax.yml` と `ansible-lint -c .ansible-lint`（CI: `.github/workflows/ansible-lint.yml`）。
+- テスト用プレイ（ローカルで実行できます。ネットワークと sudo は不要）:
+
+```bash
+export ANSIBLE_HOME="$TMPDIR/ansible-home" ANSIBLE_LOCAL_TEMP="$TMPDIR/ansible-tmp" ANSIBLE_REMOTE_TMP="$TMPDIR/ansible-remote"
+for t in validate profile_defaults expected_user install_script render_templates repo_clones; do
+  ansible-playbook -i localhost, -c local "tests/$t.yml"
+done
+```
+
+### 取り込み前の確認
+
+`main` を取得する利用側では、`main` の破損が全体に波及します。変更を `main` へ取り込む前に、利用側（`ansible_for_wsl`、`infra`）の
+`make check-branch BRANCH=<作業ブランチ>` で、作業ブランチを取得した状態の `--check -D` を確認してください。
+
 ## サプライチェーン攻撃対策（パッケージマネージャークールダウン）
 
 この Role は、新しく公開されたパッケージを一定期間インストールできないよう  

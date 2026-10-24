@@ -1,0 +1,65 @@
+---
+# ---- 個人リポジトリの clone（workstation プロファイルで有効、server では無効） ----
+# 作業ツリーに未コミットの変更があるリポジトリは更新せずに飛ばし、他のリポジトリの clone は続ける
+- name: Ensure clone root directory exists
+  ansible.builtin.file:
+    path: "{{ develop_setting_clone_root }}"
+    state: directory
+    mode: '0755'
+  become: false
+
+# すでに clone 済みか（.git があるか）を調べる
+- name: Inspect existing clones
+  ansible.builtin.stat:
+    path: "{{ develop_setting_clone_root }}/{{ item.name }}/.git"
+  loop: "{{ develop_setting_git_clones }}"
+  loop_control:
+    label: "{{ item.name }}"
+  become: false
+  register: develop_setting_clone_stat
+
+# clone 済みのリポジトリの作業ツリーが綺麗かを調べる（check モードでも調べる）
+- name: Check working tree status of existing clones
+  ansible.builtin.command:
+    cmd: git status --porcelain
+    chdir: "{{ develop_setting_clone_root }}/{{ item.item.name }}"
+  loop: "{{ develop_setting_clone_stat.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.stat.exists
+  become: false
+  register: develop_setting_clone_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# 変更があるリポジトリ、または状態を調べられなかったリポジトリは更新せず、飛ばすことを表示する
+- name: Report clones skipped because of local changes or an unreadable state
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item.item.name }} は
+      {{ '状態を調べられなかった (git status が失敗)' if item.rc | default(0) != 0 else '未コミットの変更がある' }}
+      ため更新しません
+  loop: "{{ develop_setting_clone_status.results }}"
+  loop_control:
+    label: "{{ item.item.item.name }}"
+  when:
+    - item.stdout is defined
+    - item.rc | default(0) != 0 or item.stdout | length > 0
+
+# 未 clone、または作業ツリーが綺麗なリポジトリを clone / 更新する
+- name: Clone or update repositories
+  ansible.builtin.git:
+    repo: "{{ item.item.item.repo }}"
+    dest: "{{ develop_setting_clone_root }}/{{ item.item.item.name }}"
+    clone: true
+    update: true
+    accept_hostkey: true
+    key_file: "{{ develop_setting_git_ssh_key_file | default(omit, true) }}"
+  loop: "{{ develop_setting_clone_status.results }}"
+  loop_control:
+    label: "{{ item.item.item.name }}"
+  when: >-
+    item.skipped | default(false) or
+    (item.rc | default(1) == 0 and item.stdout | length == 0)
+  become: false

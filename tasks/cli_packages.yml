@@ -1,0 +1,31 @@
+---
+# ---- 共通CLIとpip ----
+# 開発・運用で使う共通CLIとpipを導入する（外部取得は再試行つき）
+- name: Install common CLI packages
+  ansible.builtin.apt:
+    name: "{{ develop_setting_cli_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  register: develop_setting_cli_packages_result
+  until: develop_setting_cli_packages_result is succeeded
+  retries: "{{ develop_setting_installer_retries }}"
+  delay: "{{ develop_setting_installer_delay }}"
+
+# pip の設定ディレクトリを作成する
+- name: Ensure pip config directory exists
+  ansible.builtin.file:
+    path: "{{ develop_setting_target_home }}/.config/pip"
+    state: directory
+    mode: '0700'
+  become: false
+
+# pip の index を pypi.flatt.tech にする（サプライチェーン攻撃対策）
+- name: Deploy pip.conf
+  ansible.builtin.template:
+    src: pip.conf.j2
+    dest: "{{ develop_setting_target_home }}/.config/pip/pip.conf"
+    mode: '0600'
+    backup: true
+  become: false

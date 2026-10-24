@@ -1,0 +1,61 @@
+---
+# 外部インストーラを get_url で取得してから実行する共通タスク（取得物をパイプでシェルに渡す形は使わない）。
+# 呼び出し側は、導入済みかを先に確認（command -v）し、未導入のときだけこのファイルを呼ぶ。
+# 入力:
+#   develop_setting_installer_name       ツール名（失敗メッセージに使う）
+#   develop_setting_installer_url        取得先 (https)。証明書検証は既定で有効
+#   develop_setting_installer_checksum   任意。ベンダーが公開している場合だけ指定する（例: sha256:...）
+#   develop_setting_installer_shell      任意。実行に使うシェル（既定: sh）
+#   develop_setting_installer_env        任意。追加の環境変数（dict）
+#   develop_setting_installer_chdir      任意。実行するディレクトリ
+- name: "Skip installing {{ develop_setting_installer_name }} in check mode"
+  ansible.builtin.debug:
+    msg: "check モードのため {{ develop_setting_installer_name }} の導入は実行しません"
+  when: ansible_check_mode
+
+- name: "Install {{ develop_setting_installer_name }}"
+  when: not ansible_check_mode
+  become: false
+  block:
+    # 推測できないパスの一時ファイルを作る（共有 /tmp の固定パスは使わない）
+    - name: Create a temporary file for the installer
+      ansible.builtin.tempfile:
+        state: file
+        suffix: ".sh"
+        path: "{{ develop_setting_installer_tmpdir | default(omit, true) }}"
+      register: develop_setting_installer_tmp
+
+    - name: Download the installer
+      ansible.builtin.get_url:
+        url: "{{ develop_setting_installer_url }}"
+        dest: "{{ develop_setting_installer_tmp.path }}"
+        checksum: "{{ develop_setting_installer_checksum | default(omit, true) }}"
+        mode: '0700'
+        force: true
+      register: develop_setting_installer_get
+      until: develop_setting_installer_get is succeeded
+      retries: "{{ develop_setting_installer_retries }}"
+      delay: "{{ develop_setting_installer_delay }}"
+
+    - name: Run the installer
+      ansible.builtin.command:
+        argv:
+          - "{{ develop_setting_installer_shell | default('sh') }}"
+          - "{{ develop_setting_installer_tmp.path }}"
+        chdir: "{{ develop_setting_installer_chdir | default(omit, true) }}"
+      environment: "{{ {'HOME': develop_setting_target_home} | combine(develop_setting_installer_env | default({}, true)) }}"
+      changed_when: true
+  rescue:
+    # 失敗したら、取得先を含むメッセージで止める（そのホストは failed になる）
+    - name: Fail with the installer source
+      ansible.builtin.fail:
+        msg: "{{ develop_setting_installer_name }} の取得または実行に失敗しました: {{ develop_setting_installer_url }}"
+  always:
+    # 成否にかかわらず一時ファイルを削除する
+    - name: Remove the temporary installer
+      ansible.builtin.file:
+        path: "{{ develop_setting_installer_tmp.path }}"
+        state: absent
+      when:
+        - not ansible_check_mode
+        - develop_setting_installer_tmp.path is defined

@@ -1,0 +1,12 @@
+---
+# 期待するユーザーが指定されているときは、SSHログインユーザーと一致しなければ、何も変更せずに失敗する。
+# 入力: develop_setting_target_user（検出済みの SSH ログインユーザー）、develop_setting_expected_user（空なら検査しない）
+- name: Assert the SSH login user is the expected user
+  ansible.builtin.assert:
+    that:
+      - develop_setting_target_user == develop_setting_expected_user
+    fail_msg: >-
+      SSHログインユーザー ({{ develop_setting_target_user }}) が develop_setting_expected_user
+      ({{ develop_setting_expected_user }}) と一致しません。他のユーザーのホームは変更しません
+    quiet: true
+  when: develop_setting_expected_user | length > 0

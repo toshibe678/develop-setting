@@ -1,0 +1,44 @@
+---
+# tasks/assert_expected_user.yml のテスト（NFR5.6）。
+# ローカル実行: ansible-playbook -i localhost, -c local tests/expected_user.yml
+- name: The expected-user check passes, fails and is skipped as designed
+  hosts: localhost
+  gather_facts: false
+  vars:
+    develop_setting_role_path: "{{ playbook_dir }}/.."
+    develop_setting_target_user: toshi
+  tasks:
+    - name: Load role defaults
+      ansible.builtin.include_role:
+        name: "{{ develop_setting_role_path }}"
+        tasks_from: validate
+        public: true
+
+    # 既定（空）のときは検査しない
+    - name: Empty expected user skips the check
+      ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/assert_expected_user.yml"
+
+    # 正常系: 一致すれば通る
+    - name: Matching expected user passes
+      ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/assert_expected_user.yml"
+      vars:
+        develop_setting_expected_user: toshi
+
+    # 異常系: 一致しなければ、両方のユーザー名を含むメッセージで失敗する
+    - name: Mismatched expected user fails with both names
+      block:
+        - name: Check with a different expected user
+          ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/assert_expected_user.yml"
+          vars:
+            develop_setting_expected_user: someone-else
+        - name: Fail the test if the check did not fail
+          ansible.builtin.fail:
+            msg: "期待ユーザーが違うのに失敗しなかった"
+      rescue:
+        - name: Failure message names both users
+          ansible.builtin.assert:
+            that:
+              - "'toshi' in ansible_failed_result.msg"
+              - "'someone-else' in ansible_failed_result.msg"
+            fail_msg: "失敗メッセージにユーザー名が含まれていない: {{ ansible_failed_result.msg | default('') }}"
+            quiet: true
