@@ -92,6 +92,14 @@ fi
 #   sleep 10; alert
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
+# some more ls aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -119,11 +127,17 @@ fi
 # プロンプトが表示される直前に必ずカーソル表示シーケンスを送る
 export PROMPT_COMMAND='printf "\e[?25h"; '"$PROMPT_COMMAND"
 
+# サプライチェーン攻撃対策
+export PIP_INDEX_URL={{ develop_setting_pip_index_url }}
+export UV_INDEX_URL={{ develop_setting_pip_index_url }}
+
 # apt update
 sudo apt update && sudo apt upgrade -y
+{% if develop_setting_ai_enabled | bool %}
 
 # Claude CodeのUPDATE
 claude update
+{% endif %}
 
 # pnpm（インストーラが追記する内容。.bashrc は ansible がテンプレートで丸ごと管理するためここに持つ）
 export PNPM_HOME="$HOME/.local/share/pnpm"

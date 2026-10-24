@@ -8,13 +8,17 @@ fi
 if [ -d "$HOME/.local/bin" ] ; then
     PATH="$HOME/.local/bin:$PATH"
 fi
+{% if develop_setting_cloud_credentials_enabled | bool %}
 
 export AWS_ACCESS_KEY_ID="{{ bedrock_access_key_id }}"
 export AWS_SECRET_ACCESS_KEY="{{ bedrock_secret_access_key }}"
 export AWS_REGION="us-east-1"
+{% endif %}
+{% if develop_setting_windows_from_wsl_enabled | bool %}
 # Windowsのデフォルトブラウザで開くための設定
 # https://qiita.com/mfunaki/items/37dca9fdb5db427dfd7c
 export BROWSER='/mnt/c/Windows/System32/rundll32.exe url.dll,FileProtocolHandler'
+{% endif %}
 
 # bun
 export BUN_INSTALL="$HOME/.bun"

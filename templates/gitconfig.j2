@@ -32,3 +32,9 @@
     helper = !/usr/bin/gh auth git-credential
 [credential "https://gist.github.com"]
     helper = !/usr/bin/gh auth git-credential
+{% if develop_setting_git_safe_directories | length > 0 %}
+[safe]
+{% for directory in develop_setting_git_safe_directories %}
+    directory = {{ directory }}
+{% endfor %}
+{% endif %}

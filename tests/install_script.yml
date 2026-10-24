@@ -1,0 +1,131 @@
+---
+# tasks/install_script.yml のテスト。ネットワークは使わず、file:// の URL を使う。
+# ローカル実行: ansible-playbook -i localhost, -c local tests/install_script.yml
+- name: install_script.yml fetches, verifies, runs and cleans up
+  hosts: localhost
+  gather_facts: false
+  vars:
+    develop_setting_role_path: "{{ playbook_dir }}/.."
+    test_dir: "{{ lookup('ansible.builtin.env', 'TMPDIR') | default('/tmp', true) }}/develop-setting-install-test"
+    develop_setting_target_home: "{{ test_dir }}/home"
+    develop_setting_installer_tmpdir: "{{ test_dir }}/tmp"
+    develop_setting_installer_retries: 1
+    develop_setting_installer_delay: 0
+  tasks:
+    - name: Prepare a clean test directory with a dummy installer
+      block:
+        - name: Remove the test directory if it exists
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop: ["{{ test_dir }}"]
+        - name: Create the test directories
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: '0755'
+          loop: ["{{ test_dir }}", "{{ test_dir }}/home", "{{ test_dir }}/tmp"]
+        - name: Create the dummy installer
+          ansible.builtin.copy:
+            dest: "{{ test_dir }}/installer.sh"
+            content: |
+              #!/bin/sh
+              echo installed > "$HOME/marker"
+            mode: '0755'
+        - name: Compute the installer checksum
+          ansible.builtin.stat:
+            path: "{{ test_dir }}/installer.sh"
+            checksum_algorithm: sha256
+            get_checksum: true
+          register: installer_stat
+
+    # 正常系1: チェックサムなしで取得して実行できる。実行後に一時ファイルが残らない
+    - name: Install without a checksum
+      ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/install_script.yml"
+      vars:
+        develop_setting_installer_name: dummy
+        develop_setting_installer_url: "file://{{ test_dir }}/installer.sh"
+
+    - name: Installer ran (marker exists) and no temporary file remains
+      block:
+        - name: Look for the marker file the installer creates
+          ansible.builtin.stat:
+            path: "{{ test_dir }}/home/marker"
+          register: marker
+        - name: Look for leftover temporary files
+          ansible.builtin.find:
+            paths: "{{ test_dir }}/tmp"
+          register: leftovers
+        - name: Marker exists and nothing is left behind
+          ansible.builtin.assert:
+            that:
+              - marker.stat.exists
+              - leftovers.matched == 0
+            fail_msg: "marker={{ marker.stat.exists }} leftovers={{ leftovers.matched }}"
+            quiet: true
+
+    # 正常系2: 正しいチェックサムを渡しても成功する
+    - name: Install with the correct checksum
+      ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/install_script.yml"
+      vars:
+        develop_setting_installer_name: dummy-checked
+        develop_setting_installer_url: "file://{{ test_dir }}/installer.sh"
+        develop_setting_installer_checksum: "sha256:{{ installer_stat.stat.checksum }}"
+
+    # 異常系1: チェックサムが違えば失敗し、メッセージに取得先を含む。一時ファイルは残らない
+    - name: Wrong checksum fails and names the source
+      block:
+        - name: Install with a wrong checksum
+          ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/install_script.yml"
+          vars:
+            develop_setting_installer_name: dummy-bad-checksum
+            develop_setting_installer_url: "file://{{ test_dir }}/installer.sh"
+            develop_setting_installer_checksum: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        - name: Fail the test if the install did not fail
+          ansible.builtin.fail:
+            msg: "チェックサム不一致で失敗しなかった"
+      rescue:
+        - name: Failure message names the installer and its source
+          ansible.builtin.assert:
+            that:
+              - "'dummy-bad-checksum' in ansible_failed_result.msg"
+              - "'installer.sh' in ansible_failed_result.msg"
+            fail_msg: "失敗メッセージに名前または取得先が含まれていない: {{ ansible_failed_result.msg | default('') }}"
+            quiet: true
+
+    # 異常系2: 取得できない URL は失敗し、メッセージに取得先を含む
+    - name: Unreachable URL fails and names the source
+      block:
+        - name: Install from an unreachable URL
+          ansible.builtin.include_tasks: "{{ develop_setting_role_path }}/tasks/install_script.yml"
+          vars:
+            develop_setting_installer_name: dummy-missing
+            develop_setting_installer_url: "file://{{ test_dir }}/does-not-exist.sh"
+        - name: Fail the test if the install did not fail
+          ansible.builtin.fail:
+            msg: "取得不能な URL で失敗しなかった"
+      rescue:
+        - name: Failure message names the source
+          ansible.builtin.assert:
+            that:
+              - "'does-not-exist.sh' in ansible_failed_result.msg"
+            quiet: true
+
+    # 境界: 失敗後も一時ファイルが残らない
+    - name: No temporary files remain after the failures
+      block:
+        - name: Look for leftover temporary files
+          ansible.builtin.find:
+            paths: "{{ test_dir }}/tmp"
+          register: leftovers_after
+        - name: Nothing is left behind
+          ansible.builtin.assert:
+            that:
+              - leftovers_after.matched == 0
+            fail_msg: "一時ファイルが残っている: {{ leftovers_after.files | map(attribute='path') | list }}"
+            quiet: true
+
+    - name: Clean up the test directory
+      ansible.builtin.file:
+        path: "{{ test_dir }}"
+        state: absent

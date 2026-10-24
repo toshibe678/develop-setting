@@ -1,0 +1,20 @@
+# https://docs.ansible.com/ansible-lint/rules/default_rules.html
+parseable: true
+quiet: false
+use_default_rules: true
+exclude_paths:
+  - ./roles/
+skip_list:
+# どうしても1行が長くなってしまう場合もあるので除外 "[E204] Lines should be no longer than 160 chars"
+- '204'
+# change_when毎回書くの面倒なので
+- '301'
+# git はlatestを選びたいときがあるから [E401] Git checkouts must contain explicit version
+- '401'
+# shellでパイプの途中でエラー起きてもいい [E306] Shells that use pipes should set the pipefail option
+- command-shell
+# ループの書き方で怒られるのヤダ [E104] Found a bare variable 'hoge' used in a 'with_items' loop. You should use the full variable syntax ('{{hoge}}')
+- '104'
+# name を絶対につけないといけないルールはだるいので無視
+- naming-convention
+verbosity: 1

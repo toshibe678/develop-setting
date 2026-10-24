@@ -11,6 +11,9 @@
   become: false
   register: develop_setting_marketplace_list
   changed_when: false
+  # check モードでも一覧を取得する。claude が未導入の check モードでは失敗を許す（実行時は失敗とする）
+  check_mode: false
+  failed_when: develop_setting_marketplace_list.rc != 0 and not ansible_check_mode
 
 # 未登録のマーケットプレイスのみ追加する
 - name: Add Claude Code marketplaces
@@ -40,6 +43,9 @@
   become: false
   register: develop_setting_plugin_list
   changed_when: false
+  # check モードでも一覧を取得する。claude が未導入の check モードでは失敗を許す（実行時は失敗とする）
+  check_mode: false
+  failed_when: develop_setting_plugin_list.rc != 0 and not ansible_check_mode
 
 # 未導入のプラグインのみインストールする
 - name: Install Claude Code plugins
@@ -50,7 +56,7 @@
     HOME: "{{ develop_setting_target_home }}"
   become: false
   loop: "{{ develop_setting_claude_plugins }}"
-  when: item not in (develop_setting_plugin_list.stdout | from_json | map(attribute='id') | list)
+  when: item not in (develop_setting_plugin_list.stdout | default('[]', true) | from_json | map(attribute='id') | list)
   register: develop_setting_plugin_install
   until: develop_setting_plugin_install is succeeded
   retries: 3

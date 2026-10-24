@@ -1,0 +1,44 @@
+name: Ansible Lint
+
+# role の静的検証（構文検査と ansible-lint）。秘密値は使わない。
+# self-hosted runner で動かすため、フォークからの PR は実行しない（同一リポジトリのブランチからの PR だけ）。
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  ansible-lint:
+    name: Syntax check and ansible-lint
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: self-hosted
+    container:
+      image: ghcr.io/toshibe678/infra/ansible
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Syntax check
+        run: ansible-playbook -i localhost, --syntax-check tests/syntax.yml
+
+      - name: Ansible lint
+        run: ansible-lint -c .ansible-lint
+
+      # ネットワークを使わない単体テスト（syntax.yml は構文検査で実行済みのため除く）
+      - name: Unit tests
+        run: |
+          for t in validate profile_defaults expected_user install_script render_templates repo_clones; do
+            ansible-playbook -i localhost, -c local "tests/${t}.yml"
+          done

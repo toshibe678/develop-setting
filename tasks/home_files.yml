@@ -1,0 +1,29 @@
+---
+# ---- ホーム直下のシェル・git 設定（.profile、.bash_aliases、.gitignore_global） ----
+# .bashrc / .bash_profile / .gitconfig は shell_config.yml が管理する
+# ログインシェルが .bashrc を読み込む .profile を配置する
+- name: Deploy .profile
+  ansible.builtin.template:
+    src: profile.j2
+    dest: "{{ develop_setting_target_home }}/.profile"
+    mode: '0644'
+    backup: true
+  become: false
+
+# エイリアスを配置する
+- name: Deploy .bash_aliases
+  ansible.builtin.template:
+    src: bash_aliases.j2
+    dest: "{{ develop_setting_target_home }}/.bash_aliases"
+    mode: '0644'
+    backup: true
+  become: false
+
+# グローバルな gitignore を配置する（.gitconfig の core.excludesfile が指す）
+- name: Deploy .gitignore_global
+  ansible.builtin.template:
+    src: gitignore_global.j2
+    dest: "{{ develop_setting_target_home }}/.gitignore_global"
+    mode: '0644'
+    backup: true
+  become: false

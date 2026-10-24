@@ -1,0 +1,71 @@
+---
+# ---- AI設定（Claude Code・プラグイン・AI-DLC）。workstation プロファイルで有効、server では無効 ----
+# Claude Code実行に必要なサンドボックス関連パッケージを導入する
+- name: Install Claude Code sandbox packages
+  ansible.builtin.apt:
+    name: "{{ develop_setting_claude_sandbox_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+# Claude Codeのフックが使うパッケージを導入する
+- name: Install Claude Code hook packages
+  ansible.builtin.apt:
+    name: "{{ develop_setting_claude_hook_packages }}"
+    state: present
+  become: true
+
+# Claudeコマンドの存在を確認し、既存インストール有無を判定する
+- name: Check if Claude Code is already installed
+  ansible.builtin.command:
+    cmd: which claude
+  become: false
+  register: claude_which
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# 未導入時のみ公式インストーラでClaude Codeをインストールする（取得は get_url、再試行つき）
+- name: Install Claude Code via the shared installer task
+  ansible.builtin.include_tasks: install_script.yml
+  vars:
+    develop_setting_installer_name: claude-code
+    develop_setting_installer_url: "{{ develop_setting_claude_install_url }}"
+    develop_setting_installer_shell: bash
+  when: claude_which.rc != 0
+
+# Claude Codeを日次で更新するcronジョブをユーザー領域に設定する
+- name: Set up daily Claude Code update cron job
+  ansible.builtin.cron:
+    name: "Update Claude Code"
+    minute: "{{ develop_setting_claude_update_cron_minute }}"
+    hour: "{{ develop_setting_claude_update_cron_hour }}"
+    job: "curl -fsSL {{ develop_setting_claude_install_url }} | bash >> {{ develop_setting_target_home }}/claude-update.log 2>&1"
+    user: "{{ develop_setting_target_user }}"
+    state: present
+  become: false
+
+# ---- Claude Code user-level configuration (~/.claude) ----
+# ユーザー単位のClaude設定ディレクトリを作成する
+- name: Ensure Claude Code user config directory exists
+  ansible.builtin.file:
+    path: "{{ develop_setting_claude_config_dir }}"
+    state: directory
+    mode: '0755'
+  become: false
+
+# ユーザー共通のCLAUDE.mdとsettings.json（MCP設定を含む）を配置する
+- name: Deploy user-level Claude config
+  ansible.builtin.include_tasks: claude_user_config.yml
+  vars:
+    develop_setting_claude_deploy_dir: "{{ develop_setting_claude_config_dir }}"
+    develop_setting_claude_deploy_settings_mode: '0600'
+
+# Claude Codeのプラグイン/スキルを導入する
+- name: Include Claude Code plugins tasks
+  ansible.builtin.include_tasks: claude_plugins.yml
+
+# AI-DLC（Bun / aidlc / loop_verify.sh）を導入する
+- name: Include AI-DLC tasks
+  ansible.builtin.include_tasks: aidlc.yml

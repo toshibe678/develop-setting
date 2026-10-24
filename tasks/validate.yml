@@ -1,0 +1,21 @@
+---
+# プロファイル名と、各グループの on/off 変数を検証する。不正なら変数名と期待する形式を示して、処理を始める前に失敗する
+- name: Validate develop_setting_profile
+  ansible.builtin.assert:
+    that:
+      - develop_setting_profile in develop_setting_profile_defaults
+    fail_msg: >-
+      develop_setting_profile は {{ develop_setting_profile_defaults.keys() | list }} のいずれかにしてください
+      (現在の値: {{ develop_setting_profile }})
+    quiet: true
+
+# 各グループの有効・無効が真偽値であることを確認する（"yes" などの文字列は不可）
+- name: Validate develop_setting_<group>_enabled are booleans
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', 'develop_setting_' ~ item ~ '_enabled') is boolean
+    fail_msg: >-
+      develop_setting_{{ item }}_enabled は真偽値 (true / false) にしてください
+      (現在の値: {{ lookup('ansible.builtin.vars', 'develop_setting_' ~ item ~ '_enabled') }})
+    quiet: true
+  loop: "{{ develop_setting_groups }}"

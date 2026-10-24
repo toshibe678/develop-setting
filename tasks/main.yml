@@ -1,4 +1,8 @@
 ---
+# プロファイル名と各グループの on/off 変数を、処理を始める前に検証する
+- name: Include validation tasks
+  ansible.builtin.include_tasks: validate.yml
+
 # 実行先がWindowsの場合、Windows専用タスクを読み込む
 - name: Include Windows tasks
   ansible.builtin.include_tasks: windows.yml

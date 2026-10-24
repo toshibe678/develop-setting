@@ -1,0 +1,61 @@
+---
+# validate.yml の検証テスト。ローカル実行: ansible-playbook -i localhost, -c local tests/validate.yml
+- name: Validate tasks reject bad input and accept good input
+  hosts: localhost
+  gather_facts: false
+  vars:
+    develop_setting_role_path: "{{ playbook_dir }}/.."
+  tasks:
+    # 正常系: 既定値(workstation)で通る
+    - name: Default profile passes validation
+      ansible.builtin.include_role:
+        name: "{{ develop_setting_role_path }}"
+        tasks_from: validate
+
+    # 異常系1: 不正なプロファイル名は、変数名を含むメッセージで失敗する
+    - name: Bad profile name fails with the variable name
+      block:
+        - name: Validate with a bad profile name
+          ansible.builtin.include_role:
+            name: "{{ develop_setting_role_path }}"
+            tasks_from: validate
+          vars:
+            develop_setting_profile: bogus
+        - name: Fail the test if validation did not fail
+          ansible.builtin.fail:
+            msg: "不正なプロファイル名で失敗しなかった"
+      rescue:
+        - name: Failure message names the variable and the value
+          ansible.builtin.assert:
+            that:
+              - "'develop_setting_profile' in ansible_failed_result.msg"
+              - "'bogus' in ansible_failed_result.msg"
+            fail_msg: "失敗メッセージに変数名または値が含まれていない: {{ ansible_failed_result.msg | default('') }}"
+
+    # 異常系2: 真偽値でない上書きは、変数名を含むメッセージで失敗する
+    - name: Non-boolean override fails with the variable name
+      block:
+        - name: Validate with a string override
+          ansible.builtin.include_role:
+            name: "{{ develop_setting_role_path }}"
+            tasks_from: validate
+          vars:
+            develop_setting_ai_enabled: "yes"
+        - name: Fail the test if validation did not fail
+          ansible.builtin.fail:
+            msg: "文字列の上書きで失敗しなかった"
+      rescue:
+        # loop が失敗したときの個々の結果は results に入る
+        - name: Failure message names the variable
+          ansible.builtin.assert:
+            that:
+              - "'develop_setting_ai_enabled' in (ansible_failed_result.results | map(attribute='msg') | select('defined') | join(' '))"
+            fail_msg: "失敗メッセージに変数名が含まれていない: {{ ansible_failed_result | default('') }}"
+
+    # 境界: 真偽値の上書きは通る
+    - name: Boolean override passes validation
+      ansible.builtin.include_role:
+        name: "{{ develop_setting_role_path }}"
+        tasks_from: validate
+      vars:
+        develop_setting_ai_enabled: false
