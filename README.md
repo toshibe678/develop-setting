@@ -130,6 +130,39 @@ done
 `main` を取得する利用側では、`main` の破損が全体に波及します。変更を `main` へ取り込む前に、利用側（`ansible_for_wsl`、`infra`）の
 `make check-branch BRANCH=<作業ブランチ>` で、作業ブランチを取得した状態の `--check -D` を確認してください。
 
+## OpenCode（LiteLLM 経由でローカル LLM を使う）
+
+`ai` グループ（workstation）の中で、OpenCode を npm で固定版導入し、LiteLLM 向けの設定を `~/.config/opencode/` に配置します。
+server プロファイル（`ai` が無効）では何もしません。`tasks/opencode.yml` が処理し、`ai.yml` から `develop_setting_opencode_enabled` が真のときだけ呼ばれます。
+
+### 変数
+
+| 変数 | 既定 | 説明 |
+|---|---|---|
+| `develop_setting_opencode_enabled` | `true` | OpenCode の導入と設定の on/off（真偽値。`ai` が無効なら無関係） |
+| `develop_setting_opencode_package` / `develop_setting_opencode_version` | `opencode-ai` / `1.19.3` | npm のパッケージ名と固定版 |
+| `develop_setting_opencode_config_dir` | `~/.config/opencode` | 設定ディレクトリ（`0700`） |
+| `develop_setting_opencode_base_url` | 空 | LiteLLM の接続先 URL。空のまま有効化すると失敗します |
+| `develop_setting_opencode_models` | 空リスト | `{ id, name, context, output }` の一覧。`id` は LiteLLM の `model_name`。空のまま有効化すると失敗します |
+| `develop_setting_opencode_default_model` / `develop_setting_opencode_small_model` | 空 | 既定モデルと小型モデルの `id`。空なら `opencode.json` に出力しません |
+| `develop_setting_opencode_api_key_env` | `LITELLM_API_KEY` | キーを読む環境変数名。`opencode.json` は `{env:名前}` で参照し、値は書きません |
+| `develop_setting_opencode_api_key_src` | 空 | キーを書いた Vault 暗号化ファイルの絶対パス。空なら `litellm.env` を配置しません |
+
+モデル一覧は、LiteLLM 側の設定（`infra/service/llm-proxy/config/config.yaml` の `model_name`）と一致させてください。
+
+### キーの渡し方
+
+専用キーは LiteLLM で発行し、利用側の Playbook が `develop_setting_opencode_api_key_src` に Vault 暗号化ファイルを渡します。
+中身は `LITELLM_API_KEY=<発行したキー>` の 1 行です。role は中身を読まず、`template` が復号して `~/.config/opencode/litellm.env`（`0600`）に配置します
+（`no_log` と `backup` つき）。`~/.bash_profile` が、このファイルがあるときだけ `set -a` / `. file` / `set +a` で環境変数に読み込みます。
+平文のキーはコミットしないでください。
+
+### 版の固定と更新
+
+- `autoupdate` は `false` にし、`opencode upgrade` は実行しません。版は `develop_setting_opencode_version` だけで管理します。
+- 更新するときは、公開から 7 日以上経った版を選び（`~/.npmrc` の `minimum-release-age=7` と同じ基準）、この変数を書き換えます。
+- 設定ファイルの書式（`provider` / `models` / `{env:...}` など）は調査の要約に基づきます。導入時に公式仕様と照合してください（未確認）。
+
 ## サプライチェーン攻撃対策（パッケージマネージャークールダウン）
 
 この Role は、新しく公開されたパッケージを一定期間インストールできないよう  

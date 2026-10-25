@@ -44,6 +44,24 @@ develop_setting_uv_exclude_newer: ""
 # Claude Code user-level configuration (~/.claude)
 develop_setting_claude_config_dir: "{{ develop_setting_target_home }}/.claude"
 
+# ---- OpenCode（ai グループの中でのみ使う。LiteLLM 経由でローカル LLM を使う） ----
+develop_setting_opencode_enabled: true
+# npm パッケージ名と固定版。更新は公開から 7 日以上経った版を選んで、この値を書き換える（opencode upgrade は実行しない）
+develop_setting_opencode_package: "opencode-ai"
+develop_setting_opencode_version: "1.19.3"
+develop_setting_opencode_config_dir: "{{ develop_setting_target_home }}/.config/opencode"
+# LiteLLM の接続先 URL（例: https://llm-proxy.example.org/v1）。空のまま有効化すると失敗する
+develop_setting_opencode_base_url: ""
+# LiteLLM に登録されたモデルの一覧。要素は { id, name, context, output }（id は LiteLLM の model_name）
+develop_setting_opencode_models: []
+# 既定モデルと小型モデルの id。空なら opencode.json に出力しない
+develop_setting_opencode_default_model: ""
+develop_setting_opencode_small_model: ""
+# キーを読む環境変数名（opencode.json は {env:名前} で参照し、値は書かない）
+develop_setting_opencode_api_key_env: "LITELLM_API_KEY"
+# キーを書いた env ファイルの元（Vault 暗号化ファイルの絶対パス。中身は LITELLM_API_KEY=<キー> の 1 行）。空なら配置しない
+develop_setting_opencode_api_key_src: ""
+
 # SSH形式のURLを使い、対象ユーザーの ~/.ssh 配下の鍵で認証する
 # （HTTPS形式ではプライベートリポジトリでユーザー名/パスワードを対話要求されて失敗する）
 # git のSSH接続コマンド。未知のホスト鍵は初回のみ自動登録し、非対話実行での停止を防ぐ

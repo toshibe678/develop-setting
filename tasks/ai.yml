@@ -69,3 +69,8 @@
 # AI-DLC（Bun / aidlc / loop_verify.sh）を導入する
 - name: Include AI-DLC tasks
   ansible.builtin.include_tasks: aidlc.yml
+
+# OpenCode（LiteLLM 向け設定を含む）を導入する
+- name: Include OpenCode tasks
+  ansible.builtin.include_tasks: opencode.yml
+  when: develop_setting_opencode_enabled | bool

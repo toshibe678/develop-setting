@@ -15,6 +15,14 @@
     develop_setting_git_safe_directories:
       - /home/toshi/scripts
       - /home/toshi/infra
+    # OpenCode の描画テスト用ダミー値（キーの値は含めない）
+    develop_setting_opencode_base_url: https://llm-proxy.example.invalid/v1
+    develop_setting_opencode_models:
+      - { id: model-a, name: Model A, context: 32768, output: 8192 }
+      - { id: model-b, name: Model B, context: 16384, output: 4096 }
+    develop_setting_opencode_default_model: model-a
+    develop_setting_opencode_small_model: model-b
+    dummy_litellm_key: DUMMY_LITELLM_KEY
   tasks:
     # role の既定値を読み込む（play の vars が優先される）
     - name: Load role defaults
@@ -65,10 +73,28 @@
         develop_setting_profile: workstation
         develop_setting_windows_from_wsl_enabled: true
 
+    # ---- OpenCode の設定: 既定モデルあり / 空（model と small_model を出さない） ----
+    - name: Render opencode.json
+      ansible.builtin.template:
+        src: "{{ develop_setting_role_path }}/templates/opencode.json.j2"
+        dest: "{{ out_dir }}/opencode.json"
+        mode: '0600'
+
+    - name: Render opencode.json without default models
+      ansible.builtin.template:
+        src: "{{ develop_setting_role_path }}/templates/opencode.json.j2"
+        dest: "{{ out_dir }}/opencode-nodefault.json"
+        mode: '0600'
+      vars:
+        develop_setting_opencode_default_model: ""
+        develop_setting_opencode_small_model: ""
+
     - name: Read rendered files
       ansible.builtin.slurp:
         src: "{{ out_dir }}/{{ item }}"
       loop:
+        - opencode.json
+        - opencode-nodefault.json
         - server-bashrc
         - server-bash_profile
         - server-gitconfig
@@ -144,6 +170,38 @@
             that:
               - "'[safe]' not in (empty_gitconfig.content | b64decode)"
             quiet: true
+
+    - name: Rendered opencode.json is valid JSON with env-referenced key and pinned models
+      vars:
+        oc: "{{ r['opencode.json'] | from_json }}"
+        oc_nodefault: "{{ r['opencode-nodefault.json'] | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - oc['$schema'] == 'https://opencode.ai/config.json'
+          - oc.autoupdate == false
+          - oc.provider.litellm.npm == '@ai-sdk/openai-compatible'
+          - oc.provider.litellm.options.baseURL == develop_setting_opencode_base_url
+          - oc.provider.litellm.options.apiKey == '{env:LITELLM_API_KEY}'
+          - "dummy_litellm_key not in r['opencode.json']"
+          - (oc.provider.litellm.models.keys() | list | sort) == (develop_setting_opencode_models | map(attribute='id') | list | sort)
+          - oc.provider.litellm.models['model-a'].limit.context == 32768
+          - oc.provider.litellm.models['model-b'].limit.output == 4096
+          - oc.model == 'litellm/model-a'
+          - oc.small_model == 'litellm/model-b'
+          - "'model' not in oc_nodefault"
+          - "'small_model' not in oc_nodefault"
+        fail_msg: "opencode.json の描画結果が期待と違う"
+        quiet: true
+
+    - name: Rendered bash_profile loads the LiteLLM env file only when AI is enabled
+      ansible.builtin.assert:
+        that:
+          - "'litellm.env' not in r['server-bash_profile']"
+          - "'litellm.env' in r['ws-bash_profile']"
+          - "'set -a' in r['ws-bash_profile']"
+          - "'DUMMY_LITELLM_KEY' not in r['ws-bash_profile']"
+        fail_msg: "bash_profile の LiteLLM キー読み込みがプロファイルに合っていない"
+        quiet: true
 
     - name: Clean up the output directory
       ansible.builtin.file:

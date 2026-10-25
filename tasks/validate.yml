@@ -19,3 +19,13 @@
       (現在の値: {{ lookup('ansible.builtin.vars', 'develop_setting_' ~ item ~ '_enabled') }})
     quiet: true
   loop: "{{ develop_setting_groups }}"
+
+# OpenCode の有効・無効が真偽値であることを確認する
+- name: Validate develop_setting_opencode_enabled is a boolean
+  ansible.builtin.assert:
+    that:
+      - develop_setting_opencode_enabled is boolean
+    fail_msg: >-
+      develop_setting_opencode_enabled は真偽値 (true / false) にしてください
+      (現在の値: {{ develop_setting_opencode_enabled }})
+    quiet: true

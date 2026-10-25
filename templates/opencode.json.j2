@@ -1,0 +1,27 @@
+{#- OpenCode の設定。キーの値は書かず、環境変数を {env:名前} で参照する。書式は調査の要約に基づく（公式仕様は導入時に再確認が必要・未確認） -#}
+{%- set oc_models = {} -%}
+{%- for m in develop_setting_opencode_models -%}
+{%- set _ = oc_models.update({m.id: {'name': m.name, 'limit': {'context': m.context | int, 'output': m.output | int}}}) -%}
+{%- endfor -%}
+{%- set oc = {
+  '$schema': 'https://opencode.ai/config.json',
+  'autoupdate': false,
+  'provider': {
+    'litellm': {
+      'npm': '@ai-sdk/openai-compatible',
+      'name': 'LiteLLM',
+      'options': {
+        'baseURL': develop_setting_opencode_base_url,
+        'apiKey': '{env:' ~ develop_setting_opencode_api_key_env ~ '}'
+      },
+      'models': oc_models
+    }
+  }
+} -%}
+{%- if develop_setting_opencode_default_model | length > 0 -%}
+{%- set _ = oc.update({'model': 'litellm/' ~ develop_setting_opencode_default_model}) -%}
+{%- endif -%}
+{%- if develop_setting_opencode_small_model | length > 0 -%}
+{%- set _ = oc.update({'small_model': 'litellm/' ~ develop_setting_opencode_small_model}) -%}
+{%- endif -%}
+{{ oc | to_nice_json(indent=2) }}

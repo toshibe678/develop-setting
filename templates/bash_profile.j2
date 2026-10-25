@@ -14,6 +14,15 @@ export AWS_ACCESS_KEY_ID="{{ bedrock_access_key_id }}"
 export AWS_SECRET_ACCESS_KEY="{{ bedrock_secret_access_key }}"
 export AWS_REGION="us-east-1"
 {% endif %}
+{% if (develop_setting_ai_enabled | bool) and (develop_setting_opencode_enabled | bool) %}
+
+# OpenCode が LiteLLM のキーを環境変数から読めるようにする（キーの値はここに書かない）
+if [ -f "{{ develop_setting_opencode_config_dir }}/litellm.env" ] ; then
+    set -a
+    . "{{ develop_setting_opencode_config_dir }}/litellm.env"
+    set +a
+fi
+{% endif %}
 {% if develop_setting_windows_from_wsl_enabled | bool %}
 # Windowsのデフォルトブラウザで開くための設定
 # https://qiita.com/mfunaki/items/37dca9fdb5db427dfd7c

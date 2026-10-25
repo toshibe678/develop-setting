@@ -1,0 +1,96 @@
+---
+# ---- OpenCode の導入と LiteLLM 向け設定（ai グループの中で develop_setting_opencode_enabled が真のときだけ呼ばれる） ----
+# 接続先 URL とモデル一覧が未設定のまま有効化されていないことを確認する
+- name: Validate OpenCode settings are provided
+  ansible.builtin.assert:
+    that:
+      - develop_setting_opencode_base_url | length > 0
+      - develop_setting_opencode_models | length > 0
+    fail_msg: >-
+      OpenCode が有効ですが、develop_setting_opencode_base_url または develop_setting_opencode_models が未設定です。
+      Playbook側で LiteLLM の接続先 URL とモデル一覧を渡してください。
+    quiet: true
+
+# npm があるかを確認する（check モードの apt は何も入れないため、クリーンなホストでは npm が無い）
+- name: Check if npm is available for OpenCode
+  ansible.builtin.command:
+    cmd: which npm
+  become: false
+  register: develop_setting_opencode_npm_which
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# OpenCode を固定版でグローバルに導入する（npm）。一致していれば何もしない。check モードで npm が無いときは飛ばす
+- name: Install OpenCode globally via npm (pinned version)
+  when: not ansible_check_mode or develop_setting_opencode_npm_which.rc == 0
+  community.general.npm:
+    name: "{{ develop_setting_opencode_package }}"
+    version: "{{ develop_setting_opencode_version }}"
+    global: true
+    state: present
+    registry: "{{ develop_setting_npm_registry }}"
+  become: true
+  register: develop_setting_opencode_result
+  until: develop_setting_opencode_result is succeeded
+  retries: "{{ develop_setting_installer_retries }}"
+  delay: "{{ develop_setting_installer_delay }}"
+
+# OpenCode の設定ディレクトリを作成する（0700）
+- name: Ensure OpenCode config directory exists
+  ansible.builtin.file:
+    path: "{{ develop_setting_opencode_config_dir }}"
+    state: directory
+    mode: '0700'
+  become: false
+
+# 既存の opencode.json を読み、意味的な差分があるかを判定できるようにする
+- name: Read current opencode.json
+  ansible.builtin.slurp:
+    src: "{{ develop_setting_opencode_config_dir }}/opencode.json"
+  become: false
+  register: develop_setting_opencode_current
+  failed_when: false
+
+# OpenCode 自身が整形を変えても差分が出ないよう、JSONとして解釈した内容が違うときだけ配置し直す
+- name: Deploy opencode.json
+  ansible.builtin.template:
+    src: opencode.json.j2
+    dest: "{{ develop_setting_opencode_config_dir }}/opencode.json"
+    mode: '0600'
+  become: false
+  when: >-
+    develop_setting_opencode_current.content is not defined or
+    (develop_setting_opencode_current.content | b64decode | from_json) !=
+    (lookup('ansible.builtin.template', 'opencode.json.j2') | from_json)
+
+# キーのファイルの元が指定されているとき、controller 側に存在することを確認する
+- name: Check the LiteLLM key file source exists on the controller
+  ansible.builtin.stat:
+    path: "{{ develop_setting_opencode_api_key_src }}"
+  delegate_to: localhost
+  become: false
+  register: develop_setting_opencode_key_stat
+  when: develop_setting_opencode_api_key_src | length > 0
+
+# キーのファイルが無ければ、作り方を示して失敗する
+- name: Fail when the LiteLLM key file source is missing
+  ansible.builtin.assert:
+    that:
+      - develop_setting_opencode_key_stat.stat.exists
+    fail_msg: >-
+      develop_setting_opencode_api_key_src のファイルが見つかりません。
+      ansible-vault create で LITELLM_API_KEY=<発行したキー> の 1 行を持つファイルを作ってください。
+    quiet: true
+  when: develop_setting_opencode_api_key_src | length > 0
+
+# キーの env ファイルを配置する（秘密値のためログに出さない。復号は template が自動で行う）
+- name: Deploy litellm.env
+  ansible.builtin.template:
+    src: "{{ develop_setting_opencode_api_key_src }}"
+    dest: "{{ develop_setting_opencode_config_dir }}/litellm.env"
+    mode: '0600'
+    backup: true
+  become: false
+  no_log: true
+  when: develop_setting_opencode_api_key_src | length > 0
